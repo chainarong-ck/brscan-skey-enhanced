@@ -50,6 +50,7 @@ jobs:
                   DEBIAN_FRONTEND=noninteractive apt-get install -y \
                       bash \
                       ca-certificates \
+                      diffutils \
                       git \
                       python3 \
                       shellcheck
@@ -58,6 +59,7 @@ jobs:
                   dnf install -y \
                       bash \
                       ca-certificates \
+                      diffutils \
                       findutils \
                       git \
                       grep \

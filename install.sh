@@ -69,6 +69,7 @@ fi
 install_dependencies() {
     local needs_install=0
     command -v python3 >/dev/null 2>&1 || needs_install=1
+    command -v cmp >/dev/null 2>&1 || needs_install=1
     if ! command -v magick >/dev/null 2>&1 &&
         ! command -v convert >/dev/null 2>&1
     then
@@ -85,10 +86,10 @@ install_dependencies() {
     if command -v apt-get >/dev/null 2>&1; then
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            python3 python3-gi gir1.2-gtk-3.0 imagemagick xdg-utils
+            diffutils python3 python3-gi gir1.2-gtk-3.0 imagemagick xdg-utils
     elif command -v dnf >/dev/null 2>&1; then
         dnf install -y \
-            python3 python3-gobject gtk3 ImageMagick xdg-utils
+            diffutils python3 python3-gobject gtk3 ImageMagick xdg-utils
     else
         echo "ไม่รองรับ package manager ของระบบนี้" >&2
         echo "กรุณาติดตั้ง Python 3, GTK 3/PyGObject และ ImageMagick เอง" >&2

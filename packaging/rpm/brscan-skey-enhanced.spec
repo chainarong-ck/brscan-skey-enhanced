@@ -10,6 +10,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
 Requires:       bash
+Requires:       diffutils
 Requires:       python3
 Requires:       python3-gobject
 Requires:       gtk3
