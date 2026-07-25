@@ -15,6 +15,7 @@ USER_CONFIG_DIR = Path(
     os.environ.get("BRSCAN_SKEY_HOME", Path.home() / ".brscan-skey")
 ).expanduser()
 CONFIG_PATH = USER_CONFIG_DIR / "settings.ini"
+DEFAULT_ENHANCED_ENABLED = True
 PROFILES = ("email", "file", "image")
 PROFILE_LABELS = {
     "email": "Scan to Email",
@@ -74,7 +75,7 @@ def _new_parser() -> configparser.ConfigParser:
     return parser
 
 
-def load_all(path: Path = CONFIG_PATH) -> dict[str, ScanSettings]:
+def _read_parser(path: Path) -> configparser.ConfigParser:
     parser = _new_parser()
     if path.exists():
         try:
@@ -82,6 +83,25 @@ def load_all(path: Path = CONFIG_PATH) -> dict[str, ScanSettings]:
                 parser.read_file(config_file)
         except (OSError, configparser.Error) as exc:
             raise ConfigurationError(f"Cannot read {path}: {exc}") from exc
+    return parser
+
+
+def load_enhanced_enabled(path: Path = CONFIG_PATH) -> bool:
+    parser = _read_parser(path)
+    try:
+        return parser.getboolean(
+            "general",
+            "enhanced_enabled",
+            fallback=DEFAULT_ENHANCED_ENABLED,
+        )
+    except ValueError as exc:
+        raise ConfigurationError(
+            "Invalid enhanced_enabled value in [general]."
+        ) from exc
+
+
+def load_all(path: Path = CONFIG_PATH) -> dict[str, ScanSettings]:
+    parser = _read_parser(path)
 
     settings: dict[str, ScanSettings] = {}
     for profile in PROFILES:
@@ -109,28 +129,12 @@ def load_profile(profile: str, path: Path = CONFIG_PATH) -> ScanSettings:
     return load_all(path)[profile]
 
 
-def save_all(
-    settings: dict[str, ScanSettings], path: Path = CONFIG_PATH
+def _write_parser(
+    parser: configparser.ConfigParser, path: Path
 ) -> None:
-    parser = _new_parser()
-    for profile in PROFILES:
-        _validate_profile(profile)
-        if profile not in settings:
-            raise ConfigurationError(f"Missing scan profile: {profile}")
-        value = validate(
-            settings[profile].resolution,
-            settings[profile].paper_size,
-            settings[profile].duplex,
-        )
-        parser[profile] = {
-            "resolution": str(value.resolution),
-            "paper_size": value.paper_size,
-            "duplex": "true" if value.duplex else "false",
-        }
-
-    path.parent.mkdir(parents=True, exist_ok=True)
     temp_name: str | None = None
     try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(
             "w",
             encoding="utf-8",
@@ -151,6 +155,51 @@ def save_all(
             except OSError:
                 pass
         raise ConfigurationError(f"Cannot save {path}: {exc}") from exc
+
+
+def save_all(
+    settings: dict[str, ScanSettings],
+    path: Path = CONFIG_PATH,
+    *,
+    enhanced_enabled: bool | None = None,
+) -> None:
+    if enhanced_enabled is None:
+        enhanced_enabled = load_enhanced_enabled(path)
+    if not isinstance(enhanced_enabled, bool):
+        raise ConfigurationError(
+            "Enhanced enabled state must be true or false."
+        )
+
+    parser = _new_parser()
+    parser["general"] = {
+        "enhanced_enabled": "true" if enhanced_enabled else "false"
+    }
+    for profile in PROFILES:
+        _validate_profile(profile)
+        if profile not in settings:
+            raise ConfigurationError(f"Missing scan profile: {profile}")
+        value = validate(
+            settings[profile].resolution,
+            settings[profile].paper_size,
+            settings[profile].duplex,
+        )
+        parser[profile] = {
+            "resolution": str(value.resolution),
+            "paper_size": value.paper_size,
+            "duplex": "true" if value.duplex else "false",
+        }
+
+    _write_parser(parser, path)
+
+
+def save_enhanced_enabled(
+    enabled: bool, path: Path = CONFIG_PATH
+) -> None:
+    if not isinstance(enabled, bool):
+        raise ConfigurationError(
+            "Enhanced enabled state must be true or false."
+        )
+    save_all(load_all(path), path, enhanced_enabled=enabled)
 
 
 def restore_defaults() -> dict[str, ScanSettings]:

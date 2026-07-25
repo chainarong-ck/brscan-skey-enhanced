@@ -1,3 +1,6 @@
+[general]
+enhanced_enabled = true
+
 [email]
 resolution = 200
 paper_size = A4
