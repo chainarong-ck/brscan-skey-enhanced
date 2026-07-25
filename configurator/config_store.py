@@ -11,8 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-APP_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = APP_DIR / "settings.ini"
+USER_CONFIG_DIR = Path(
+    os.environ.get("BRSCAN_SKEY_HOME", Path.home() / ".brscan-skey")
+).expanduser()
+CONFIG_PATH = USER_CONFIG_DIR / "settings.ini"
 PROFILES = ("email", "file", "image")
 PROFILE_LABELS = {
     "email": "Scan to Email",
@@ -22,8 +24,8 @@ PROFILE_LABELS = {
 RESOLUTIONS = (100, 150, 200, 300, 600)
 PAPER_SIZES = ("A4", "A5", "Letter", "Legal")
 DEFAULTS = {
-    "email": {"resolution": 150, "paper_size": "A4", "duplex": False},
-    "file": {"resolution": 100, "paper_size": "A4", "duplex": False},
+    "email": {"resolution": 200, "paper_size": "A4", "duplex": False},
+    "file": {"resolution": 150, "paper_size": "A4", "duplex": False},
     "image": {"resolution": 300, "paper_size": "A4", "duplex": False},
 }
 

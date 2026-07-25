@@ -1,0 +1,14 @@
+[email]
+resolution = 200
+paper_size = A4
+duplex = false
+
+[file]
+resolution = 150
+paper_size = A4
+duplex = false
+
+[image]
+resolution = 300
+paper_size = A4
+duplex = false

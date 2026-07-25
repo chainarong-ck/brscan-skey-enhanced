@@ -3,12 +3,25 @@
 # Load validated settings into RESOLUTION, SIZE, and DUPLEX.
 load_scan_settings() {
     local profile="$1"
-    local app_dir
+    local reader
     local -a values
 
-    app_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [ -n "${BRSCAN_SKEY_SETTINGS_READER:-}" ]; then
+        reader="$BRSCAN_SKEY_SETTINGS_READER"
+    elif [ -x /usr/local/bin/brscan-skey-read-settings ]; then
+        reader=/usr/local/bin/brscan-skey-read-settings
+    elif [ -x /usr/bin/brscan-skey-read-settings ]; then
+        reader=/usr/bin/brscan-skey-read-settings
+    elif command -v brscan-skey-read-settings >/dev/null 2>&1; then
+        reader="$(command -v brscan-skey-read-settings)"
+    else
+        logger -t brscan-skey \
+            "brscan-skey-read-settings is not installed"
+        return 1
+    fi
+
     if ! mapfile -t values < <(
-        python3 "$app_dir/configurator/config_store.py" "$profile"
+        "$reader" "$profile"
     ); then
         logger -t brscan-skey \
             "Could not load settings for scan profile: $profile"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Brother Scan Settings
+Comment=Configure per-user Brother brscan-skey scan profiles
+Exec=brscan-skey-config
+Icon=scanner
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=Brother;Scanner;Scan;

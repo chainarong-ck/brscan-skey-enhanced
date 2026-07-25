@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+bin_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+prefix=$(CDPATH= cd -- "$bin_dir/.." && pwd)
+app_dir="$prefix/lib/brscan-skey-enhanced"
+if [ ! -f "$app_dir/configurator/user_setup.py" ]; then
+    app_dir="$prefix"
+fi
+
+export BRSCAN_SKEY_APP_DIR="$app_dir"
+exec python3 "$app_dir/configurator/user_setup.py" "$@"

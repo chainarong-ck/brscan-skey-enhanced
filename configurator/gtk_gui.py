@@ -27,6 +27,7 @@ try:
         restore_defaults,
         save_all,
     )
+    from .user_setup import UserSetupError, ensure_user_installation
 except ImportError:
     from config_store import (  # type: ignore
         CONFIG_PATH,
@@ -40,6 +41,7 @@ except ImportError:
         restore_defaults,
         save_all,
     )
+    from user_setup import UserSetupError, ensure_user_installation  # type: ignore
 
 
 class SettingsWindow(Gtk.Window):
@@ -169,6 +171,11 @@ class SettingsWindow(Gtk.Window):
 
 
 def main() -> int:
+    try:
+        ensure_user_installation()
+    except UserSetupError as exc:
+        print(f"Could not prepare user files: {exc}", file=sys.stderr)
+        return 1
     window = SettingsWindow()
     window.show_all()
     Gtk.main()

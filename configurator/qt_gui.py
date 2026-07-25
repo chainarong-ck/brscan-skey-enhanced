@@ -64,6 +64,7 @@ try:
         restore_defaults,
         save_all,
     )
+    from .user_setup import UserSetupError, ensure_user_installation
 except ImportError:
     from config_store import (  # type: ignore
         CONFIG_PATH,
@@ -77,6 +78,7 @@ except ImportError:
         restore_defaults,
         save_all,
     )
+    from user_setup import UserSetupError, ensure_user_installation  # type: ignore
 
 
 class SettingsDialog(QDialog):
@@ -175,6 +177,15 @@ class SettingsDialog(QDialog):
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Brother Scan Settings")
+    try:
+        ensure_user_installation()
+    except UserSetupError as exc:
+        QMessageBox.critical(
+            None,
+            "Brother Scan Settings",
+            f"Could not prepare user files:\n{exc}",
+        )
+        return 1
     dialog = SettingsDialog()
     dialog.show()
     return app.exec()
