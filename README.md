@@ -70,6 +70,25 @@ cd brscan-skey-enhanced
 sudo ./install.sh
 ```
 
+ระหว่างติดตั้ง โปรแกรมจะถามว่า frontend เริ่มต้นเป็น GTK 3 หรือ Qt 6
+ค่านี้จะใช้เมื่อคลิก **Brother Scan Settings** จากเมนู หรือเรียก
+`brscan-skey-config` โดยไม่ระบุ option กด Enter เพื่อเลือก GTK ซึ่งเป็น
+ค่าแนะนำ:
+
+```text
+Choose the default GUI for Brother Scan Settings:
+  1) GTK 3 (recommended)
+  2) Qt 6
+Selection [1]:
+```
+
+สำหรับการติดตั้งแบบอัตโนมัติหรือไม่ต้องการให้แสดงคำถาม ให้ระบุโดยตรง:
+
+```bash
+sudo ./install.sh --gui gtk
+sudo ./install.sh --gui qt
+```
+
 เมื่อใช้ `sudo` ตัวติดตั้งจะเตรียม `~/.brscan-skey` ให้ผู้ใช้ที่สั่ง
 `sudo` โดยอัตโนมัติ ผู้ใช้อื่นสามารถเปิด configurator หนึ่งครั้ง หรือสั่ง:
 
@@ -95,12 +114,16 @@ brscan-skey-setup-user
 brscan-skey-config
 ```
 
-โปรแกรมจะเลือก GTK ก่อนหากมีติดตั้งไว้ สามารถบังคับ frontend ได้ด้วย:
+สามารถบังคับ frontend สำหรับการเปิดครั้งใดครั้งหนึ่งได้ด้วย:
 
 ```bash
 brscan-skey-config --gtk
 brscan-skey-config --qt
 ```
+
+เมื่อไม่ระบุ `--gtk` หรือ `--qt` โปรแกรมจะใช้ค่าที่เลือกไว้ตอนติดตั้ง
+ส่วน option ทั้งสองใช้ override เฉพาะการเปิดครั้งนั้นและไม่เปลี่ยน
+ค่าเริ่มต้น
 
 ค่าที่บันทึกจะอยู่ที่ `~/.brscan-skey/settings.ini` ของผู้ใช้ที่เปิด
 โปรแกรมเท่านั้น จึงใช้โปรแกรมส่วนกลางร่วมกันได้โดยไม่ใช้ค่าปะปนกัน

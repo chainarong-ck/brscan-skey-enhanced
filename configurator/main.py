@@ -6,6 +6,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import sys
+from pathlib import Path
+
+
+DEFAULT_FRONTEND_PATH = Path(__file__).resolve().parent.parent / "default-gui"
 
 
 def _module_available(name: str) -> bool:
@@ -33,6 +37,16 @@ def _load_main(module_name: str):
     return module.main
 
 
+def configured_frontend(
+    path: Path = DEFAULT_FRONTEND_PATH,
+) -> str | None:
+    try:
+        frontend = path.read_text(encoding="utf-8").strip().lower()
+    except OSError:
+        return None
+    return frontend if frontend in {"gtk", "qt"} else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Configure Brother brscan-skey scan profiles."
@@ -50,6 +64,12 @@ def main() -> int:
     if args.gtk:
         return _load_main("gtk_gui")()
     if args.qt:
+        return _load_main("qt_gui")()
+
+    default_frontend = configured_frontend()
+    if default_frontend == "gtk":
+        return _load_main("gtk_gui")()
+    if default_frontend == "qt":
         return _load_main("qt_gui")()
 
     if _gtk_available():

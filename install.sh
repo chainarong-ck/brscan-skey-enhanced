@@ -6,6 +6,7 @@ PREFIX="${PREFIX:-/usr/local}"
 DESTDIR="${DESTDIR:-}"
 SETUP_USER=""
 SKIP_USER_SETUP=false
+GUI_DEFAULT=""
 
 usage() {
     cat <<'EOF'
@@ -17,6 +18,7 @@ Options:
   --prefix PATH       Installation prefix (default: /usr/local)
   --destdir PATH      Staging root for package creation
   --user USER         Initialize ~/.brscan-skey for USER after installation
+  --gui gtk|qt        Default GUI for menu and option-free launches
   --no-user-setup     Do not initialize a user's files
   -h, --help          Show this help
 EOF
@@ -46,6 +48,14 @@ while [ "$#" -gt 0 ]; do
                 exit 2
             }
             SETUP_USER="$2"
+            shift 2
+            ;;
+        --gui)
+            [ "$#" -ge 2 ] || {
+                echo "install.sh: --gui requires gtk or qt" >&2
+                exit 2
+            }
+            GUI_DEFAULT="${2,,}"
             shift 2
             ;;
         --no-user-setup)
@@ -80,6 +90,13 @@ if [ -n "$DESTDIR" ]; then
             ;;
     esac
 fi
+case "$GUI_DEFAULT" in
+    ""|gtk|qt) ;;
+    *)
+        echo "install.sh: --gui must be gtk or qt" >&2
+        exit 2
+        ;;
+esac
 
 if [ -z "$DESTDIR" ] && [ "$(id -u)" -ne 0 ]; then
     case "$PREFIX" in
@@ -95,6 +112,49 @@ INSTALL_PREFIX="${DESTDIR%/}${PREFIX}"
 APP_DIR="$INSTALL_PREFIX/lib/brscan-skey-enhanced"
 BIN_DIR="$INSTALL_PREFIX/bin"
 APPLICATIONS_DIR="$INSTALL_PREFIX/share/applications"
+
+if [ -z "$GUI_DEFAULT" ]; then
+    CURRENT_GUI=""
+    if [ -f "$APP_DIR/default-gui" ]; then
+        IFS= read -r CURRENT_GUI < "$APP_DIR/default-gui" || true
+        case "$CURRENT_GUI" in
+            gtk|qt) ;;
+            *) CURRENT_GUI="" ;;
+        esac
+    fi
+
+    if [ -t 0 ]; then
+        echo
+        echo "Choose the default GUI for Brother Scan Settings:"
+        echo "  1) GTK 3 (recommended)"
+        echo "  2) Qt 6"
+        if [ "$CURRENT_GUI" = qt ]; then
+            DEFAULT_CHOICE=2
+        else
+            DEFAULT_CHOICE=1
+        fi
+        printf "Selection [%s]: " "$DEFAULT_CHOICE"
+        if ! IFS= read -r GUI_CHOICE; then
+            GUI_CHOICE=""
+        fi
+        GUI_CHOICE="${GUI_CHOICE:-$DEFAULT_CHOICE}"
+        case "$GUI_CHOICE" in
+            1|gtk|GTK) GUI_DEFAULT=gtk ;;
+            2|qt|QT) GUI_DEFAULT=qt ;;
+            *)
+                echo "install.sh: select 1 for GTK or 2 for Qt" >&2
+                exit 2
+                ;;
+        esac
+    elif [ -n "$CURRENT_GUI" ]; then
+        GUI_DEFAULT="$CURRENT_GUI"
+        echo "Keeping the current default GUI: $GUI_DEFAULT"
+    else
+        GUI_DEFAULT=gtk
+        echo "Non-interactive install; defaulting to GTK."
+        echo "Use --gui qt to select Qt instead."
+    fi
+fi
 
 install -d -m 0755 \
     "$APP_DIR/configurator" \
@@ -122,8 +182,12 @@ done
 install -m 0644 \
     "$PROJECT_DIR/packaging/brscan-skey-config.desktop" \
     "$APPLICATIONS_DIR/brscan-skey-config.desktop"
+install -m 0644 \
+    "$PROJECT_DIR/packaging/default-gui.$GUI_DEFAULT" \
+    "$APP_DIR/default-gui"
 
 echo "Installed application files under $INSTALL_PREFIX"
+echo "Default GUI: $GUI_DEFAULT"
 
 if [ -n "$DESTDIR" ] || [ "$SKIP_USER_SETUP" = true ]; then
     if [ -n "$DESTDIR" ]; then
