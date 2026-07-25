@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+brother_dir="/opt/brother/scanner/brscan-skey/script"
+if [ -d "$brother_dir" ]; then
+    BRSCAN_SHARE_DIR="/usr/share/brscan-skey-enhanced" \
+    BRSCAN_BROTHER_SCRIPT_DIR="$brother_dir" \
+        /usr/bin/brscan-skey-enhanced-integrate install || true
+else
+    cat <<'EOF'
+brscan-skey-enhanced:
+  ยังไม่พบ Brother brscan-skey จึงยังไม่ได้เชื่อมปุ่มสแกน
+  หลังติดตั้งไดรเวอร์ Brother แล้ว ให้ใช้คำสั่ง:
+    sudo brscan-skey-enhanced-integrate install
+EOF
+fi
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+fi
+
+exit 0

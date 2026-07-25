@@ -12,9 +12,16 @@ from pathlib import Path
 
 
 APP_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = Path(
-    os.environ.get("BRSCAN_SETTINGS_PATH", str(APP_DIR / "settings.ini"))
+USER_CONFIG_DIR = Path(
+    os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
 ).expanduser()
+CONFIG_PATH = Path(
+    os.environ.get(
+        "BRSCAN_SETTINGS_PATH",
+        str(USER_CONFIG_DIR / "brscan-skey-enhanced" / "settings.ini"),
+    )
+).expanduser()
+LEGACY_CONFIG_PATH = APP_DIR / "settings.ini"
 PROFILES = ("email", "file", "image")
 PROFILE_LABELS = {
     "email": "Scan to Email",
@@ -76,12 +83,20 @@ def _new_parser() -> configparser.ConfigParser:
 
 def load_all(path: Path = CONFIG_PATH) -> dict[str, ScanSettings]:
     parser = _new_parser()
-    if path.exists():
+    read_path = path
+    if (
+        path == CONFIG_PATH
+        and not path.exists()
+        and LEGACY_CONFIG_PATH.exists()
+    ):
+        read_path = LEGACY_CONFIG_PATH
+
+    if read_path.exists():
         try:
-            with path.open("r", encoding="utf-8") as config_file:
+            with read_path.open("r", encoding="utf-8") as config_file:
                 parser.read_file(config_file)
         except (OSError, configparser.Error) as exc:
-            raise ConfigurationError(f"Cannot read {path}: {exc}") from exc
+            raise ConfigurationError(f"Cannot read {read_path}: {exc}") from exc
 
     settings: dict[str, ScanSettings] = {}
     for profile in PROFILES:

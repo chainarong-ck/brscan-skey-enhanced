@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+show_error() {
+    local message="$1"
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="Brother Scan Settings" --text="$message"
+    else
+        printf 'Brother Scan Settings: %s\n' "$message" >&2
+    fi
+}
+
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PREFIX="$(dirname "$BIN_DIR")"
+APP_DIR=""
+
+for candidate in \
+    "${BRSCAN_APP_DIR:-}" \
+    "$PREFIX/lib/brscan-skey-enhanced" \
+    /usr/local/lib/brscan-skey-enhanced \
+    /usr/lib/brscan-skey-enhanced \
+    "$(dirname "$BIN_DIR")"
+do
+    if [ -n "$candidate" ] &&
+        [ -f "$candidate/configurator/config_store.py" ]
+    then
+        APP_DIR="$candidate"
+        break
+    fi
+done
+
+if [ -z "$APP_DIR" ]; then
+    show_error "ไม่พบไฟล์โปรแกรม กรุณาติดตั้งโปรแกรมใหม่"
+    exit 1
+fi
+
+export PYTHONPATH="$APP_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+if python3 -c \
+    'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'
+then
+    exec python3 -m configurator.gtk_gui
+fi
+
+if python3 -c 'import PySide6' || python3 -c 'import PyQt6'; then
+    exec python3 -m configurator.qt_gui
+fi
+
+show_error \
+    "ไม่พบ GTK 3 หรือ Qt 6 สำหรับ Python กรุณารันตัวติดตั้งอีกครั้ง"
+exit 1

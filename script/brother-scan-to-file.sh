@@ -46,7 +46,7 @@ if [ ! -s "$OUTPUT_TEMP" ]; then
     exit 1
 fi
 
-if magick "$OUTPUT_TEMP" \
+if convert_scan_output "$OUTPUT_TEMP" \
     -units PixelsPerInch \
     -density "$RESOLUTION" \
     "$OUTPUT"

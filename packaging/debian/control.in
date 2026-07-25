@@ -1,0 +1,13 @@
+Package: brscan-skey-enhanced
+Version: @VERSION@
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: Brother Scan Enhanced maintainers <noreply@github.com>
+Depends: python3, python3-gi, gir1.2-gtk-3.0, imagemagick, xdg-utils
+Homepage: https://github.com/chainarong-ck/brscan-skey-enhanced
+Description: Easier Brother brscan-skey button configuration
+ Provides configurable Scan to File, Scan to Image, and Scan to Email
+ handlers for Brother scanners on Linux, with a GTK settings application.
+ The proprietary Brother scanner driver and brscan-skey must be installed
+ separately.

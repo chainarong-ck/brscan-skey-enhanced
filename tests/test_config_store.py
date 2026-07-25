@@ -1,7 +1,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+from configurator import config_store
 from configurator.config_store import (
     DEFAULTS,
     PROFILES,
@@ -47,6 +49,23 @@ class ConfigStoreTests(unittest.TestCase):
         self.assertEqual(settings["email"].resolution, 600)
         self.assertEqual(settings["email"].paper_size, DEFAULTS["email"]["paper_size"])
         self.assertEqual(settings["file"], restore_defaults()["file"])
+
+    def test_legacy_repository_settings_are_still_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "new" / "settings.ini"
+            legacy_path = Path(temp_dir) / "legacy.ini"
+            legacy_path.write_text(
+                "[image]\nresolution = 600\npaper_size = Letter\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.object(config_store, "CONFIG_PATH", config_path),
+                patch.object(config_store, "LEGACY_CONFIG_PATH", legacy_path),
+            ):
+                settings = load_all(config_path)
+
+        self.assertEqual(settings["image"].resolution, 600)
+        self.assertEqual(settings["image"].paper_size, "Letter")
 
     def test_invalid_values_are_rejected(self) -> None:
         invalid_values = (

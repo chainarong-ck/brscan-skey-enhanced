@@ -1,0 +1,89 @@
+#!/bin/bash
+set -u
+
+errors=0
+warnings=0
+
+ok() {
+    printf '[OK]   %s\n' "$1"
+}
+
+warn() {
+    printf '[WARN] %s\n' "$1"
+    warnings=$((warnings + 1))
+}
+
+error() {
+    printf '[ERROR] %s\n' "$1"
+    errors=$((errors + 1))
+}
+
+if [ "$(uname -s)" = "Linux" ]; then
+    ok "Linux"
+else
+    error "รองรับเฉพาะ Linux"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+    ok "Python 3: $(python3 --version 2>&1)"
+else
+    error "ไม่พบ Python 3"
+fi
+
+if python3 -c \
+    'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk' \
+    >/dev/null 2>&1
+then
+    ok "GTK 3 และ PyGObject"
+elif python3 -c 'import PySide6' >/dev/null 2>&1 ||
+    python3 -c 'import PyQt6' >/dev/null 2>&1
+then
+    ok "Qt 6 สำหรับ Python"
+else
+    error "ไม่พบ GTK 3/PyGObject หรือ PySide6/PyQt6"
+fi
+
+if command -v magick >/dev/null 2>&1; then
+    ok "ImageMagick: magick"
+elif command -v convert >/dev/null 2>&1; then
+    ok "ImageMagick: convert"
+else
+    error "ไม่พบ ImageMagick"
+fi
+
+if command -v brscan-skey >/dev/null 2>&1; then
+    ok "Brother brscan-skey"
+else
+    error "ไม่พบ brscan-skey กรุณาติดตั้งไดรเวอร์จาก Brother"
+fi
+
+scanner_helper="/opt/brother/scanner/brscan-skey/skey-scanimage"
+if [ -x "$scanner_helper" ]; then
+    ok "Brother scanner helper"
+else
+    error "ไม่พบ $scanner_helper"
+fi
+
+brother_script_dir="${BRSCAN_BROTHER_SCRIPT_DIR:-/opt/brother/scanner/brscan-skey/script}"
+if [ -d "$brother_script_dir" ]; then
+    missing_configs=0
+    for config_name in scantofile.config scantoimage.config scantoemail.config; do
+        if ! grep -q 'brscan-skey-enhanced' \
+            "$brother_script_dir/$config_name" 2>/dev/null
+        then
+            missing_configs=$((missing_configs + 1))
+        fi
+    done
+    if [ "$missing_configs" -eq 0 ]; then
+        ok "เชื่อมปุ่มสแกนทั้ง 3 ปุ่มแล้ว"
+    else
+        warn "ยังเชื่อมปุ่มสแกนไม่ครบ กรุณารันตัวติดตั้งอีกครั้ง"
+    fi
+else
+    error "ไม่พบไดเรกทอรีตั้งค่าของ brscan-skey"
+fi
+
+printf '\nผลตรวจ: %d ข้อผิดพลาด, %d คำเตือน\n' "$errors" "$warnings"
+if [ "$errors" -gt 0 ]; then
+    exit 1
+fi

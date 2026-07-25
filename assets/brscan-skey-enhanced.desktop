@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Brother Scan Settings
+Name[th]=ตั้งค่าเครื่องสแกน Brother
+Comment=Configure Brother scanner button profiles
+Comment[th]=ตั้งค่าโปรไฟล์สำหรับปุ่มสแกนของ Brother
+Exec=brscan-skey-settings
+Icon=brscan-skey-enhanced
+Terminal=false
+Categories=Settings;Utility;Scanning;
+Keywords=scanner;Brother;scan;สแกน;
+StartupNotify=true

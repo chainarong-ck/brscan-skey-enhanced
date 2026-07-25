@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+if [ "${1:-}" = "remove" ] &&
+    [ -x /usr/bin/brscan-skey-enhanced-integrate ]
+then
+    BRSCAN_SHARE_DIR="/usr/share/brscan-skey-enhanced" \
+    BRSCAN_BROTHER_SCRIPT_DIR="/opt/brother/scanner/brscan-skey/script" \
+        /usr/bin/brscan-skey-enhanced-integrate remove || true
+fi
+
+exit 0

@@ -1,0 +1,83 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "${EUID:-$(id -u)}" -ne 0 ] &&
+    [ "${BRSCAN_ALLOW_UNPRIVILEGED_TESTS:-0}" != "1" ]
+then
+    echo "คำสั่งนี้ต้องใช้สิทธิ์ผู้ดูแลระบบ (sudo)" >&2
+    exit 1
+fi
+
+action="${1:-install}"
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PREFIX="$(dirname "$BIN_DIR")"
+SHARE_DIR="${BRSCAN_SHARE_DIR:-$PREFIX/share/brscan-skey-enhanced}"
+SOURCE_DIR="$SHARE_DIR/brother-config"
+TARGET_DIR="${BRSCAN_BROTHER_SCRIPT_DIR:-/opt/brother/scanner/brscan-skey/script}"
+BACKUP_SUFFIX=".brscan-skey-enhanced.backup"
+CONFIG_NAMES=(scantofile.config scantoimage.config scantoemail.config)
+
+install_configs() {
+    if [ ! -d "$TARGET_DIR" ]; then
+        echo "ไม่พบ $TARGET_DIR" >&2
+        echo "กรุณาติดตั้ง Brother brscan-skey ก่อน แล้วรันคำสั่งนี้ใหม่" >&2
+        return 2
+    fi
+
+    for config_name in "${CONFIG_NAMES[@]}"; do
+        source_file="$SOURCE_DIR/$config_name"
+        target_file="$TARGET_DIR/$config_name"
+        backup_file="${target_file}${BACKUP_SUFFIX}"
+
+        if [ ! -f "$source_file" ]; then
+            echo "ไม่พบไฟล์สำหรับติดตั้ง: $source_file" >&2
+            return 1
+        fi
+        if [ -e "$target_file" ] && [ ! -e "$backup_file" ]; then
+            cp -a -- "$target_file" "$backup_file"
+        fi
+        install -m 0644 -- "$source_file" "$target_file"
+    done
+    echo "เชื่อมปุ่ม Scan to File, Image และ Email เรียบร้อยแล้ว"
+}
+
+remove_configs() {
+    if [ ! -d "$TARGET_DIR" ]; then
+        return 0
+    fi
+
+    for config_name in "${CONFIG_NAMES[@]}"; do
+        source_file="$SOURCE_DIR/$config_name"
+        target_file="$TARGET_DIR/$config_name"
+        backup_file="${target_file}${BACKUP_SUFFIX}"
+
+        if [ -e "$backup_file" ]; then
+            if [ ! -e "$target_file" ] ||
+                [ ! -f "$source_file" ] ||
+                cmp -s -- "$target_file" "$source_file"
+            then
+                mv -- "$backup_file" "$target_file"
+                echo "คืนค่า $target_file"
+            else
+                echo "เก็บไฟล์ที่ผู้ใช้แก้ไขและไฟล์สำรองไว้: $target_file" >&2
+            fi
+        elif [ -f "$source_file" ] &&
+            cmp -s -- "$target_file" "$source_file"
+        then
+            rm -f -- "$target_file"
+        fi
+    done
+}
+
+case "$action" in
+    install)
+        install_configs
+        ;;
+    remove)
+        remove_configs
+        ;;
+    *)
+        echo "วิธีใช้: $0 [install|remove]" >&2
+        exit 2
+        ;;
+esac

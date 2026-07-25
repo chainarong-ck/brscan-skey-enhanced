@@ -71,7 +71,7 @@ jobs:
           esac
 
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -83,8 +83,31 @@ jobs:
 
       - name: Check shell scripts
         run: |
-          bash -n script/*.sh tests/test_scan_scripts.sh tests/fixtures/bin/*
-          shellcheck -x script/*.sh tests/test_scan_scripts.sh tests/fixtures/bin/*
+          bash -n \
+              install.sh \
+              uninstall.sh \
+              bin/* \
+              packaging/build-packages.sh \
+              packaging/debian/postinst \
+              packaging/debian/prerm \
+              ./*.config \
+              script/*.sh \
+              tests/*.sh \
+              tests/fixtures/bin/*
+          shellcheck -x \
+              install.sh \
+              uninstall.sh \
+              bin/* \
+              packaging/build-packages.sh \
+              packaging/debian/postinst \
+              packaging/debian/prerm \
+              ./*.config \
+              script/*.sh \
+              tests/*.sh \
+              tests/fixtures/bin/*
 
       - name: Run scanner integration tests
         run: bash tests/test_scan_scripts.sh
+
+      - name: Run installer integration tests
+        run: bash tests/test_installer.sh
