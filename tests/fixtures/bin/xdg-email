@@ -1,0 +1,5 @@
+#!/bin/bash
+set -euo pipefail
+
+printf '%q ' "$@" >>"$EMAIL_CALL_LOG"
+printf '\n' >>"$EMAIL_CALL_LOG"

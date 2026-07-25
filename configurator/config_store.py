@@ -12,7 +12,9 @@ from pathlib import Path
 
 
 APP_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = APP_DIR / "settings.ini"
+CONFIG_PATH = Path(
+    os.environ.get("BRSCAN_SETTINGS_PATH", str(APP_DIR / "settings.ini"))
+).expanduser()
 PROFILES = ("email", "file", "image")
 PROFILE_LABELS = {
     "email": "Scan to Email",

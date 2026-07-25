@@ -1,0 +1,22 @@
+#!/bin/bash
+set -euo pipefail
+
+printf '%q ' "$@" >>"$SCAN_CALL_LOG"
+printf '\n' >>"$SCAN_CALL_LOG"
+
+output_file=""
+while [ "$#" -gt 0 ]; do
+    if [ "$1" = "--outputfile" ]; then
+        shift
+        output_file="${1:-}"
+        break
+    fi
+    shift
+done
+
+if [ -z "$output_file" ]; then
+    echo "mock scanner: --outputfile is required" >&2
+    exit 2
+fi
+
+printf 'mock TIFF data\n' >"$output_file"

@@ -1,0 +1,90 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+          - name: Debian 12
+            image: debian:12
+          - name: Debian 13
+            image: debian:13
+          - name: Fedora 43
+            image: fedora:43
+          - name: Fedora 44
+            image: fedora:44
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Install test dependencies
+        run: |
+          source /etc/os-release
+          case "$ID" in
+              ubuntu|debian)
+                  apt-get update
+                  DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                      bash \
+                      ca-certificates \
+                      git \
+                      python3 \
+                      shellcheck
+                  ;;
+              fedora)
+                  dnf install -y \
+                      bash \
+                      ca-certificates \
+                      findutils \
+                      git \
+                      grep \
+                      python3 \
+                      ShellCheck
+                  ;;
+              *)
+                  echo "Unsupported test distribution: $ID" >&2
+                  exit 1
+                  ;;
+          esac
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Check Python syntax
+        run: python3 -m compileall -q configurator
+
+      - name: Run configuration unit tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Check shell scripts
+        run: |
+          bash -n script/*.sh tests/test_scan_scripts.sh tests/fixtures/bin/*
+          shellcheck -x script/*.sh tests/test_scan_scripts.sh tests/fixtures/bin/*
+
+      - name: Run scanner integration tests
+        run: bash tests/test_scan_scripts.sh

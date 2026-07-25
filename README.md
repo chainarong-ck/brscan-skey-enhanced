@@ -1,4 +1,4 @@
-# Brother brscan-skey Tools
+# Brother brscan-skey Enhanced
 
 ชุดสคริปต์ปุ่มสแกนและหน้าต่างตั้งค่าแบบ GTK/Qt สำหรับ Brother
 `brscan-skey` บน Linux โดยแยกการตั้งค่าสำหรับ Scan to File, Scan to Image
@@ -17,7 +17,8 @@
 
 - Linux
 - เครื่องสแกน Brother ที่รองรับ `brscan-skey`
-- ไดรเวอร์เครื่องสแกนและ `brscan-skey` จาก Brother
+- **ต้องติดตั้งไดรเวอร์เครื่องสแกนและแพ็กเกจ `brscan-skey` จาก Brother
+  ให้เรียบร้อยก่อนติดตั้งโปรเจกต์นี้**
 - Python 3
 - ImageMagick (`magick`)
 - ไลบรารีสำหรับหน้าต่างตั้งค่าอย่างใดอย่างหนึ่ง:
@@ -30,6 +31,18 @@ Ubuntu หน้าต่าง GTK มักต้องใช้แพ็ก�
 `gir1.2-gtk-3.0`
 
 ## การติดตั้ง
+
+โปรเจกต์นี้ทำงานร่วมกับซอฟต์แวร์ของ Brother และไม่ได้รวมไดรเวอร์มาให้
+จึงต้องดาวน์โหลดและติดตั้งไดรเวอร์สำหรับเครื่องสแกนรุ่นที่ใช้งาน รวมถึง
+แพ็กเกจ **Scanner Setting file (`brscan-skey`)** จากเว็บไซต์ Brother ก่อน
+จากนั้นตรวจสอบว่าคำสั่งต่อไปนี้ใช้งานได้:
+
+```bash
+brscan-skey -l
+```
+
+หากระบบยังไม่พบคำสั่ง `brscan-skey` ให้ติดตั้งแพ็กเกจของ Brother
+ให้เสร็จก่อนดำเนินการขั้นตอนถัดไป
 
 โคลน repository ไปยัง `~/.brscan-skey`:
 
@@ -120,3 +133,16 @@ journalctl -t brscan-skey
 
 หากแปลงเป็น PDF หรือ JPEG ไม่สำเร็จ ไฟล์ TIFF ต้นฉบับจะยังคงอยู่ใน
 `~/brscan`
+
+## การทดสอบ
+
+รันชุดทดสอบในเครื่องได้ด้วยคำสั่ง:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+bash tests/test_scan_scripts.sh
+```
+
+GitHub Actions จะรัน unit tests, ตรวจ shell scripts และจำลองขั้นตอนสแกน
+ครบทั้ง Scan to File, Image และ Email บน Ubuntu 22.04, Ubuntu 24.04,
+Debian 13 และ Fedora 43 ทุกครั้งที่ push หรือเปิด pull request

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# These variables are intentionally assigned for the scripts that source this file.
+# shellcheck disable=SC2034
+
 # Load validated settings into RESOLUTION, SIZE, and DUPLEX.
 load_scan_settings() {
     local profile="$1"

@@ -3,11 +3,11 @@ set -u
 
 OUTDIR="$HOME/brscan"
 STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
-SCANNER="/opt/brother/scanner/brscan-skey/skey-scanimage"
+SCANNER="${BRSCAN_SCANNER:-/opt/brother/scanner/brscan-skey/skey-scanimage}"
 DEVICE="${1:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=load-scan-settings.sh
+# shellcheck source=script/load-scan-settings.sh
 source "$SCRIPT_DIR/load-scan-settings.sh"
 load_scan_settings image || exit 1
 
