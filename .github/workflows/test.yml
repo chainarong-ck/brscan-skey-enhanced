@@ -1,0 +1,111 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+            package_manager: apt
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            package_manager: apt
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+            package_manager: apt
+          - name: Debian 12
+            image: debian:12
+            package_manager: apt
+          - name: Debian 13
+            image: debian:13
+            package_manager: apt
+          - name: Fedora 43
+            image: fedora:43
+            package_manager: dnf
+          - name: Fedora 44
+            image: fedora:44
+            package_manager: dnf
+          - name: AlmaLinux 9
+            image: almalinux:9
+            package_manager: dnf
+          - name: AlmaLinux 10
+            image: almalinux:10
+            package_manager: dnf
+          - name: Arch Linux
+            image: archlinux:latest
+            package_manager: pacman
+
+    steps:
+      - name: Install test dependencies
+        shell: sh
+        run: |
+          case "${{ matrix.package_manager }}" in
+            apt)
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y --no-install-recommends \
+                bash \
+                ca-certificates \
+                git \
+                python3
+              ;;
+            dnf)
+              dnf install -y \
+                bash \
+                ca-certificates \
+                git \
+                python3
+              ;;
+            pacman)
+              pacman -Syu --noconfirm \
+                bash \
+                ca-certificates \
+                git \
+                python
+              ;;
+            *)
+              echo "Unsupported package manager" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show test environment
+        shell: bash
+        run: |
+          cat /etc/os-release
+          python3 --version
+          bash --version | head -n 1
+
+      - name: Check Python version
+        shell: bash
+        run: |
+          python3 -c \
+            'import sys; assert sys.version_info >= (3, 10), sys.version'
+
+      - name: Run unit tests
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Check shell syntax
+        shell: bash
+        run: bash -n install.sh uninstall.sh bin/* script/*.sh *.config
