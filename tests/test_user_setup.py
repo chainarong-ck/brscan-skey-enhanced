@@ -56,9 +56,7 @@ class UserSetupTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue((user_dir / "scantofile.config").is_file())
-            self.assertTrue(
-                (user_dir / "script/brother-scan-to-file.sh").is_file()
-            )
+            self.assertFalse((user_dir / "script").exists())
             self.assertTrue((user_dir / "settings.ini").is_file())
             self.assertEqual(
                 (user_dir / "settings.ini").read_text(encoding="utf-8"),
@@ -66,9 +64,12 @@ class UserSetupTests(unittest.TestCase):
                     encoding="utf-8"
                 ),
             )
-            self.assertTrue(
-                (user_dir / "script/brother-scan-to-file.sh").stat().st_mode
-                & 0o100
+            self.assertIn(
+                "/usr/local/lib/brscan-skey-enhanced/script/"
+                "brother-scan-to-file.sh",
+                (user_dir / "scantofile.config").read_text(
+                    encoding="utf-8"
+                ),
             )
             self.assertEqual(
                 (user_dir / "settings.ini").stat().st_mode & 0o777,
@@ -107,6 +108,32 @@ class UserSetupTests(unittest.TestCase):
                 (PROJECT_DIR / "scantofile.config").read_text(
                     encoding="utf-8"
                 ),
+            )
+
+    def test_setup_removes_only_legacy_managed_user_scripts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir)
+            script_dir = home / ".brscan-skey/script"
+            script_dir.mkdir(parents=True)
+            legacy_names = (
+                "load-scan-settings.sh",
+                "brother-scan-to-file.sh",
+                "brother-scan-to-email.sh",
+                "brother-scan-to-image.sh",
+            )
+            for name in legacy_names:
+                (script_dir / name).write_text("old\n", encoding="utf-8")
+            custom_script = script_dir / "keep-my-script.sh"
+            custom_script.write_text("custom\n", encoding="utf-8")
+
+            result = self._run_setup(home)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for name in legacy_names:
+                self.assertFalse((script_dir / name).exists())
+            self.assertEqual(
+                custom_script.read_text(encoding="utf-8"),
+                "custom\n",
             )
 
     def test_disabled_state_deactivates_all_override_files(self) -> None:

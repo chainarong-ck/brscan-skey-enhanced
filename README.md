@@ -7,24 +7,36 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 ## รูปแบบการติดตั้ง
 
 ตัวโปรแกรม Python ถูกติดตั้งส่วนกลาง ทำให้ผู้ใช้ทุกคนเรียก
-`brscan-skey-config` ได้ ส่วนไฟล์ต่อไปนี้จะแยกเก็บใน home ของผู้ใช้แต่ละคน:
+`brscan-skey-config` ได้ สคริปต์สแกนที่ผู้ใช้ไม่ต้องแก้ไขจะมีเพียงชุดเดียว:
+
+```text
+/usr/local/lib/brscan-skey-enhanced/
+├── configurator/
+├── script/
+│   ├── load-scan-settings.sh
+│   ├── brother-scan-to-file.sh
+│   ├── brother-scan-to-email.sh
+│   └── brother-scan-to-image.sh
+├── scantofile.config
+├── scantoemail.config
+└── scantoimage.config
+```
+
+ใน home ของผู้ใช้แต่ละคนจะเก็บเฉพาะค่าและไฟล์ที่ใช้เปิด override:
 
 ```text
 ~/.brscan-skey/                    # เมื่อเปิดส่วนเสริม
 ├── settings.ini
 ├── scantofile.config
 ├── scantoemail.config
-├── scantoimage.config
-└── script/
-    ├── load-scan-settings.sh
-    ├── brother-scan-to-file.sh
-    ├── brother-scan-to-email.sh
-    └── brother-scan-to-image.sh
+└── scantoimage.config
 ```
 
 `settings.ini` เป็นค่าของผู้ใช้แต่ละคนและจะไม่ถูกเขียนทับเมื่ออัปเดต
-โปรแกรม ส่วนไฟล์ `.config` และไฟล์ใน `script/` เป็นไฟล์ที่โปรแกรมจัดการ
-ให้และจะถูกอัปเดตจากรุ่นที่ติดตั้งทุกครั้งที่เปิด configurator
+โปรแกรม ส่วนไฟล์ `.config` เป็นไฟล์ที่โปรแกรมจัดการให้และจะถูกอัปเดตจาก
+รุ่นที่ติดตั้งทุกครั้งที่เปิด configurator ไฟล์เหล่านี้เรียกสคริปต์
+ส่วนกลาง แต่สคริปต์ยังใช้ `$HOME` ของผู้ใช้ที่เรียกจึงอ่านค่ากับบันทึก
+ผลลัพธ์แยกกันตามผู้ใช้
 
 ไฟล์ส่วนกลางจะอยู่ที่ `/usr/local/lib/brscan-skey-enhanced` โดยปริยาย
 และมี launcher อยู่ใน `/usr/local/bin` โปรแกรมไม่คัดลอกหรือแก้ไฟล์ใน
@@ -126,7 +138,7 @@ brscan-skey-config --qt
 
 เมื่อปิด โปรแกรมจะเก็บไฟล์ไว้เป็น `scantofile.config.disabled`,
 `scantoimage.config.disabled` และ `scantoemail.config.disabled`
-แทนการลบการตั้งค่าหรือสคริปต์ เปิดกลับเมื่อใดก็ได้โดยค่าโปรไฟล์เดิมยังอยู่
+แทนการลบการตั้งค่า เปิดกลับเมื่อใดก็ได้โดยค่าโปรไฟล์เดิมยังอยู่
 
 สถานะเปิด/ปิดเป็นค่าของผู้ใช้แต่ละคนและเก็บใน `[general]` ของ
 `~/.brscan-skey/settings.ini` ค่าเริ่มต้นหลังเปิด configurator ครั้งแรกคือ
@@ -179,7 +191,9 @@ sudo ./install.sh
 ```
 
 `settings.ini` เดิมของผู้ใช้จะยังอยู่ ส่วนไฟล์ override คงที่จะอัปเดตเมื่อ
-ผู้ใช้เปิด configurator
+ผู้ใช้เปิด configurator หากอัปเดตจากรุ่นที่เคยคัดลอกสคริปต์ลงใน
+`~/.brscan-skey/script/` โปรแกรมจะลบเฉพาะสคริปต์เก่าสี่ไฟล์ที่เคยจัดการ
+และจะรักษาไฟล์อื่นของผู้ใช้ไว้
 
 ## ถอนการติดตั้ง
 

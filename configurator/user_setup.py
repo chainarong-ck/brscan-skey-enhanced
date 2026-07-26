@@ -38,12 +38,12 @@ OVERRIDE_FILES = (
     Path("scantoemail.config"),
     Path("scantoimage.config"),
 )
-SCRIPT_FILES = {
-    Path("script/load-scan-settings.sh"): 0o755,
-    Path("script/brother-scan-to-file.sh"): 0o755,
-    Path("script/brother-scan-to-email.sh"): 0o755,
-    Path("script/brother-scan-to-image.sh"): 0o755,
-}
+LEGACY_SCRIPT_FILES = (
+    Path("script/load-scan-settings.sh"),
+    Path("script/brother-scan-to-file.sh"),
+    Path("script/brother-scan-to-email.sh"),
+    Path("script/brother-scan-to-image.sh"),
+)
 DEFAULT_SETTINGS = APP_DIR / "settings.ini.example"
 
 
@@ -141,13 +141,22 @@ def set_enhanced_enabled(enabled: bool) -> None:
         raise
 
 
+def _remove_legacy_user_scripts() -> None:
+    """Remove only scripts managed by older releases."""
+    for relative_path in LEGACY_SCRIPT_FILES:
+        _remove_file(USER_CONFIG_DIR / relative_path)
+
+    try:
+        (USER_CONFIG_DIR / "script").rmdir()
+    except OSError:
+        # Preserve the directory when it contains files owned by the user.
+        pass
+
+
 def ensure_user_installation() -> Path:
     """Refresh managed files and create settings.ini only when it is absent."""
     try:
         USER_CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
-        (USER_CONFIG_DIR / "script").mkdir(
-            mode=0o755, parents=True, exist_ok=True
-        )
     except OSError as exc:
         raise UserSetupError(
             f"Cannot create user directory {USER_CONFIG_DIR}: {exc}"
@@ -156,18 +165,12 @@ def ensure_user_installation() -> Path:
     if not CONFIG_PATH.exists():
         _atomic_copy(DEFAULT_SETTINGS, CONFIG_PATH, 0o600)
 
-    for relative_path, mode in SCRIPT_FILES.items():
-        _atomic_copy(
-            APP_DIR / relative_path,
-            USER_CONFIG_DIR / relative_path,
-            mode,
-        )
-
     try:
         enabled = load_enhanced_enabled()
     except ConfigurationError:
         enabled = DEFAULT_ENHANCED_ENABLED
     apply_override_state(enabled)
+    _remove_legacy_user_scripts()
 
     return USER_CONFIG_DIR
 
