@@ -1,11 +1,5 @@
 #!/bin/sh
 set -eu
 
-bin_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-prefix=$(CDPATH= cd -- "$bin_dir/.." && pwd)
-app_dir="$prefix/lib/brscan-skey-enhanced"
-if [ ! -f "$app_dir/configurator/config_store.py" ]; then
-    app_dir="$prefix"
-fi
-
-exec python3 "$app_dir/configurator/config_store.py" "$@"
+cd /usr/local/lib/brscan-skey-enhanced
+exec python3 -m configurator.config_store "$@"

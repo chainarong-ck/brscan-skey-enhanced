@@ -1,50 +1,28 @@
-#!/usr/bin/env python3
 """Install the per-user brscan-skey overrides without touching driver files."""
 
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
-try:
-    from .config_store import (
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        USER_CONFIG_DIR,
-        ConfigurationError,
-        load_enhanced_enabled,
-        save_enhanced_enabled,
-    )
-except ImportError:
-    from config_store import (  # type: ignore
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        USER_CONFIG_DIR,
-        ConfigurationError,
-        load_enhanced_enabled,
-        save_enhanced_enabled,
-    )
+from .config_store import (
+    CONFIG_PATH,
+    DEFAULT_ENHANCED_ENABLED,
+    USER_CONFIG_DIR,
+    ConfigurationError,
+    create_default_settings,
+    load_enhanced_enabled,
+    save_enhanced_enabled,
+)
 
 
-APP_DIR = Path(
-    os.environ.get(
-        "BRSCAN_SKEY_APP_DIR", Path(__file__).resolve().parent.parent
-    )
-).expanduser()
+APP_DIR = Path(__file__).resolve().parent.parent
 OVERRIDE_FILES = (
     Path("scantofile.config"),
     Path("scantoemail.config"),
     Path("scantoimage.config"),
 )
-LEGACY_SCRIPT_FILES = (
-    Path("script/load-scan-settings.sh"),
-    Path("script/brother-scan-to-file.sh"),
-    Path("script/brother-scan-to-email.sh"),
-    Path("script/brother-scan-to-image.sh"),
-)
-DEFAULT_SETTINGS = APP_DIR / "settings.ini.example"
 
 
 class UserSetupError(OSError):
@@ -93,21 +71,34 @@ def apply_override_state(enabled: bool) -> None:
     if not isinstance(enabled, bool):
         raise UserSetupError("Enhanced enabled state must be true or false.")
 
+    if not enabled:
+        removed: list[Path] = []
+        try:
+            for relative_path in OVERRIDE_FILES:
+                active_path = USER_CONFIG_DIR / relative_path
+                existed = active_path.exists()
+                _remove_file(active_path)
+                if existed:
+                    removed.append(relative_path)
+        except UserSetupError:
+            for relative_path in removed:
+                try:
+                    _atomic_copy(
+                        APP_DIR / relative_path,
+                        USER_CONFIG_DIR / relative_path,
+                        0o644,
+                    )
+                except UserSetupError:
+                    pass
+            raise
+        return
+
     prepared: list[tuple[Path, bool]] = []
-    opposite_paths: list[Path] = []
     for relative_path in OVERRIDE_FILES:
         active_path = USER_CONFIG_DIR / relative_path
-        disabled_path = active_path.with_name(f"{active_path.name}.disabled")
-        if enabled:
-            target_path = active_path
-            opposite_path = disabled_path
-        else:
-            target_path = disabled_path
-            opposite_path = active_path
-
-        existed = target_path.exists()
+        existed = active_path.exists()
         try:
-            _atomic_copy(APP_DIR / relative_path, target_path, 0o644)
+            _atomic_copy(APP_DIR / relative_path, active_path, 0o644)
         except UserSetupError:
             for prepared_path, previously_existed in prepared:
                 if not previously_existed:
@@ -116,11 +107,7 @@ def apply_override_state(enabled: bool) -> None:
                     except OSError:
                         pass
             raise
-        prepared.append((target_path, existed))
-        opposite_paths.append(opposite_path)
-
-    for opposite_path in opposite_paths:
-        _remove_file(opposite_path)
+        prepared.append((active_path, existed))
 
 
 def set_enhanced_enabled(enabled: bool) -> None:
@@ -141,55 +128,26 @@ def set_enhanced_enabled(enabled: bool) -> None:
         raise
 
 
-def _remove_legacy_user_scripts() -> None:
-    """Remove only scripts managed by older releases."""
-    for relative_path in LEGACY_SCRIPT_FILES:
-        _remove_file(USER_CONFIG_DIR / relative_path)
-
-    try:
-        (USER_CONFIG_DIR / "script").rmdir()
-    except OSError:
-        # Preserve the directory when it contains files owned by the user.
-        pass
-
-
 def ensure_user_installation() -> Path:
     """Refresh managed files and create settings.ini only when it is absent."""
     try:
         USER_CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(USER_CONFIG_DIR, 0o700)
     except OSError as exc:
         raise UserSetupError(
             f"Cannot create user directory {USER_CONFIG_DIR}: {exc}"
         ) from exc
 
     if not CONFIG_PATH.exists():
-        _atomic_copy(DEFAULT_SETTINGS, CONFIG_PATH, 0o600)
+        try:
+            create_default_settings()
+        except ConfigurationError as exc:
+            raise UserSetupError(str(exc)) from exc
 
     try:
         enabled = load_enhanced_enabled()
     except ConfigurationError:
         enabled = DEFAULT_ENHANCED_ENABLED
     apply_override_state(enabled)
-    _remove_legacy_user_scripts()
 
     return USER_CONFIG_DIR
-
-
-def main() -> int:
-    try:
-        destination = ensure_user_installation()
-    except (ConfigurationError, UserSetupError) as exc:
-        print(f"brscan-skey user setup failed: {exc}", file=sys.stderr)
-        return 1
-
-    try:
-        enabled = load_enhanced_enabled()
-    except ConfigurationError:
-        enabled = DEFAULT_ENHANCED_ENABLED
-    state = "enabled" if enabled else "disabled"
-    print(f"User files are ready in {destination} (enhanced actions: {state})")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -1,77 +1,28 @@
 #!/bin/bash
 set -u
 
-OUTDIR="$HOME/brscan"
-STAMP="$(date +%Y-%m-%d_%H-%M-%S)"
-SCANNER="/opt/brother/scanner/brscan-skey/skey-scanimage"
-DEVICE="${1:-}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=load-scan-settings.sh
-source "$SCRIPT_DIR/load-scan-settings.sh"
-load_scan_settings email || exit 1
+# shellcheck source=scan-common.sh
+source "$SCRIPT_DIR/scan-common.sh"
 
-PREFIX="brscan_email_"
-OUTPUT="$OUTDIR/${PREFIX}${STAMP}.pdf"
-OUTPUT_TEMP="$OUTDIR/.${PREFIX}${STAMP}-$$.tif"
-
-mkdir -p "$OUTDIR"
-
-if [ "$DUPLEX" = 'ON' ]; then
-    SOURCE="ADF_C"
-else
-    SOURCE="FB"
-fi
-
-SCAN_ARGS=(
-    --device-name "$DEVICE"
-    --resolution "$RESOLUTION"
-    --source "$SOURCE"
-    --size "$SIZE"
-    --outputfile "$OUTPUT_TEMP"
-)
-if [ "$DUPLEX" = 'ON' ]; then
-    SCAN_ARGS+=(--duplex)
-fi
-
-"$SCANNER" "${SCAN_ARGS[@]}"
-if [ ! -s "$OUTPUT_TEMP" ]; then
-    rm -f "$OUTPUT_TEMP"
-    sleep 1
-    "$SCANNER" "${SCAN_ARGS[@]}"
-fi
-
-if [ ! -s "$OUTPUT_TEMP" ]; then
-    logger -t brscan-skey "Scan to Email failed: no image created"
-    exit 1
-fi
-
-if magick "$OUTPUT_TEMP" \
-    -units PixelsPerInch \
-    -density "$RESOLUTION" \
-    "$OUTPUT"
-then
-    rm -f "$OUTPUT_TEMP"
-    logger -t brscan-skey "Scan to Email saved: $OUTPUT"
-else
-    FALLBACK="$OUTDIR/${PREFIX}${STAMP}.tif"
-    mv "$OUTPUT_TEMP" "$FALLBACK"
-    logger -t brscan-skey \
-        "Email PDF conversion failed; TIFF preserved: $FALLBACK"
-    exit 1
-fi
+start_scan email "brscan_email_" "${1:-}" || exit 1
+OUTPUT="${BRSCAN_OUTPUT_BASE}.pdf"
+convert_scan_to_pdf "$OUTPUT" "Scan to Email" || exit 1
 
 if command -v xdg-email >/dev/null 2>&1; then
-    xdg-email \
+    if xdg-email \
         --utf8 \
-        --subject "Scanned document ${STAMP}" \
+        --attach "$OUTPUT" \
+        --subject "Scanned document ${BRSCAN_STAMP}" \
         --body "Scanned document saved at: $OUTPUT" \
-        >/dev/null 2>&1 &
-    logger -t brscan-skey \
-        "Opened default email composer with scanned file path: $OUTPUT"
+        >/dev/null 2>&1
+    then
+        brscan_log "Opened the default email composer with attachment: $OUTPUT"
+    else
+        brscan_log "Could not open the email composer; PDF preserved: $OUTPUT"
+    fi
 else
-    logger -t brscan-skey \
-        "xdg-email is unavailable; PDF preserved: $OUTPUT"
+    brscan_log "xdg-email is unavailable; PDF preserved: $OUTPUT"
 fi
 
 exit 0

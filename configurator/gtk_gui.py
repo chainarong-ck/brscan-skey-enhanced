@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """GTK 3 frontend for Brother scan settings."""
 
 from __future__ import annotations
@@ -9,51 +8,30 @@ try:
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
+    from gi.repository import Gtk, Pango
 except (ImportError, ValueError) as exc:
     print(f"GTK 3 Python support is required: {exc}", file=sys.stderr)
     raise SystemExit(1)
 
-try:
-    from .config_store import (
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        PAPER_SIZES,
-        PROFILES,
-        PROFILE_LABELS,
-        RESOLUTIONS,
-        ConfigurationError,
-        ScanSettings,
-        load_all,
-        load_enhanced_enabled,
-        restore_defaults,
-        save_all,
-    )
-    from .user_setup import (
-        UserSetupError,
-        ensure_user_installation,
-        set_enhanced_enabled,
-    )
-except ImportError:
-    from config_store import (  # type: ignore
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        PAPER_SIZES,
-        PROFILES,
-        PROFILE_LABELS,
-        RESOLUTIONS,
-        ConfigurationError,
-        ScanSettings,
-        load_all,
-        load_enhanced_enabled,
-        restore_defaults,
-        save_all,
-    )
-    from user_setup import (  # type: ignore
-        UserSetupError,
-        ensure_user_installation,
-        set_enhanced_enabled,
-    )
+from .config_store import (
+    CONFIG_PATH,
+    DEFAULT_ENHANCED_ENABLED,
+    PAPER_SIZES,
+    PROFILES,
+    PROFILE_LABELS,
+    RESOLUTIONS,
+    ConfigurationError,
+    ScanSettings,
+    load_all,
+    load_enhanced_enabled,
+    restore_defaults,
+    save_all,
+)
+from .user_setup import (
+    UserSetupError,
+    ensure_user_installation,
+    set_enhanced_enabled,
+)
 
 
 class SettingsWindow(Gtk.Window):
@@ -112,7 +90,7 @@ class SettingsWindow(Gtk.Window):
 
         self.status = Gtk.Label(label=f"Configuration: {CONFIG_PATH}")
         self.status.set_halign(Gtk.Align.START)
-        self.status.set_ellipsize(3)
+        self.status.set_ellipsize(Pango.EllipsizeMode.END)
         outer.pack_start(self.status, False, False, 0)
 
         buttons = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
@@ -164,7 +142,11 @@ class SettingsWindow(Gtk.Window):
         duplex.set_halign(Gtk.Align.START)
 
         for row, (label, widget) in enumerate(
-            (("Resolution", resolution), ("Paper size", paper), ("Duplex", duplex))
+            (
+                ("Resolution", resolution),
+                ("Paper size", paper),
+                ("Duplex (ADF)", duplex),
+            )
         ):
             text = Gtk.Label(label=label)
             text.set_halign(Gtk.Align.END)
@@ -194,7 +176,10 @@ class SettingsWindow(Gtk.Window):
 
     def _on_save(self, _button: Gtk.Button) -> None:
         try:
-            save_all(self._collect())
+            save_all(
+                self._collect(),
+                enhanced_enabled=self._enabled_state,
+            )
         except (ConfigurationError, TypeError, ValueError) as exc:
             self._show_error(str(exc))
             return

@@ -36,7 +36,6 @@ fi
 rm -f \
     "$INSTALL_PREFIX/bin/brscan-skey-config" \
     "$INSTALL_PREFIX/bin/brscan-skey-read-settings" \
-    "$INSTALL_PREFIX/bin/brscan-skey-setup-user" \
     "$INSTALL_PREFIX/share/applications/brscan-skey-config.desktop"
 rm -rf -- "$APP_DIR"
 

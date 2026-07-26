@@ -9,38 +9,21 @@ from pathlib import Path
 
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
+OVERRIDE_NAMES = (
+    "scantofile.config",
+    "scantoemail.config",
+    "scantoimage.config",
+)
 
 
 class UserSetupTests(unittest.TestCase):
-    def _run_setup(self, home: Path) -> subprocess.CompletedProcess[str]:
-        environment = os.environ.copy()
-        environment["HOME"] = str(home)
-        environment["BRSCAN_SKEY_APP_DIR"] = str(PROJECT_DIR)
-        return subprocess.run(
-            [
-                sys.executable,
-                str(PROJECT_DIR / "configurator/user_setup.py"),
-            ],
-            env=environment,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-
-    def _run_toggle(
-        self, home: Path, enabled: bool
+    def _run_python(
+        self, home: Path, statement: str
     ) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         environment["HOME"] = str(home)
-        environment["BRSCAN_SKEY_APP_DIR"] = str(PROJECT_DIR)
         return subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                "from configurator.user_setup import "
-                "set_enhanced_enabled; "
-                f"set_enhanced_enabled({enabled!r})",
-            ],
+            [sys.executable, "-c", statement],
             cwd=PROJECT_DIR,
             env=environment,
             check=False,
@@ -48,61 +31,75 @@ class UserSetupTests(unittest.TestCase):
             text=True,
         )
 
-    def test_setup_installs_managed_files_and_default_settings(self) -> None:
+    def _run_setup(self, home: Path) -> subprocess.CompletedProcess[str]:
+        return self._run_python(
+            home,
+            "from configurator.user_setup import "
+            "ensure_user_installation; ensure_user_installation()",
+        )
+
+    def _run_toggle(
+        self, home: Path, enabled: bool
+    ) -> subprocess.CompletedProcess[str]:
+        return self._run_python(
+            home,
+            "from configurator.user_setup import "
+            "set_enhanced_enabled; "
+            f"set_enhanced_enabled({enabled!r})",
+        )
+
+    def test_first_launch_creates_only_user_specific_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir)
-            result = self._run_setup(home)
-            user_dir = home / ".brscan-skey"
 
+            result = self._run_setup(home)
+
+            user_dir = home / ".brscan-skey"
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((user_dir / "scantofile.config").is_file())
-            self.assertFalse((user_dir / "script").exists())
+            self.assertEqual(user_dir.stat().st_mode & 0o777, 0o700)
             self.assertTrue((user_dir / "settings.ini").is_file())
-            self.assertEqual(
-                (user_dir / "settings.ini").read_text(encoding="utf-8"),
-                (PROJECT_DIR / "settings.ini.example").read_text(
-                    encoding="utf-8"
-                ),
-            )
-            self.assertIn(
-                "/usr/local/lib/brscan-skey-enhanced/script/"
-                "brother-scan-to-file.sh",
-                (user_dir / "scantofile.config").read_text(
-                    encoding="utf-8"
-                ),
-            )
             self.assertEqual(
                 (user_dir / "settings.ini").stat().st_mode & 0o777,
                 0o600,
             )
+            self.assertFalse((user_dir / "script").exists())
+            for name in OVERRIDE_NAMES:
+                self.assertEqual(
+                    (user_dir / name).read_text(encoding="utf-8"),
+                    (PROJECT_DIR / name).read_text(encoding="utf-8"),
+                )
 
-    def test_setup_preserves_existing_user_settings(self) -> None:
+    def test_setup_preserves_valid_user_settings(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir)
-            user_dir = home / ".brscan-skey"
-            user_dir.mkdir()
-            settings = user_dir / "settings.ini"
-            custom_content = (
-                "[file]\nresolution = 600\npaper_size = Legal\nduplex = true\n"
+            first_result = self._run_setup(home)
+            settings_path = home / ".brscan-skey/settings.ini"
+            custom_content = settings_path.read_text(encoding="utf-8").replace(
+                "resolution = 150",
+                "resolution = 600",
             )
-            settings.write_text(custom_content, encoding="utf-8")
+            settings_path.write_text(custom_content, encoding="utf-8")
 
-            result = self._run_setup(home)
+            second_result = self._run_setup(home)
 
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(settings.read_text(encoding="utf-8"), custom_content)
+            self.assertEqual(first_result.returncode, 0, first_result.stderr)
+            self.assertEqual(second_result.returncode, 0, second_result.stderr)
+            self.assertEqual(
+                settings_path.read_text(encoding="utf-8"),
+                custom_content,
+            )
 
-    def test_setup_refreshes_managed_files(self) -> None:
+    def test_setup_refreshes_managed_override_files(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir)
-            user_dir = home / ".brscan-skey"
-            user_dir.mkdir()
-            managed_file = user_dir / "scantofile.config"
+            first_result = self._run_setup(home)
+            managed_file = home / ".brscan-skey/scantofile.config"
             managed_file.write_text("outdated\n", encoding="utf-8")
 
-            result = self._run_setup(home)
+            second_result = self._run_setup(home)
 
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(first_result.returncode, 0, first_result.stderr)
+            self.assertEqual(second_result.returncode, 0, second_result.stderr)
             self.assertEqual(
                 managed_file.read_text(encoding="utf-8"),
                 (PROJECT_DIR / "scantofile.config").read_text(
@@ -110,59 +107,12 @@ class UserSetupTests(unittest.TestCase):
                 ),
             )
 
-    def test_setup_removes_only_legacy_managed_user_scripts(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            home = Path(temp_dir)
-            script_dir = home / ".brscan-skey/script"
-            script_dir.mkdir(parents=True)
-            legacy_names = (
-                "load-scan-settings.sh",
-                "brother-scan-to-file.sh",
-                "brother-scan-to-email.sh",
-                "brother-scan-to-image.sh",
-            )
-            for name in legacy_names:
-                (script_dir / name).write_text("old\n", encoding="utf-8")
-            custom_script = script_dir / "keep-my-script.sh"
-            custom_script.write_text("custom\n", encoding="utf-8")
-
-            result = self._run_setup(home)
-
-            self.assertEqual(result.returncode, 0, result.stderr)
-            for name in legacy_names:
-                self.assertFalse((script_dir / name).exists())
-            self.assertEqual(
-                custom_script.read_text(encoding="utf-8"),
-                "custom\n",
-            )
-
-    def test_disabled_state_deactivates_all_override_files(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            home = Path(temp_dir)
-            user_dir = home / ".brscan-skey"
-            user_dir.mkdir()
-            settings = user_dir / "settings.ini"
-            settings.write_text(
-                "[general]\nenhanced_enabled = false\n",
-                encoding="utf-8",
-            )
-
-            result = self._run_setup(home)
-
-            self.assertEqual(result.returncode, 0, result.stderr)
-            for name in (
-                "scantofile.config",
-                "scantoemail.config",
-                "scantoimage.config",
-            ):
-                self.assertFalse((user_dir / name).exists())
-                self.assertTrue((user_dir / f"{name}.disabled").is_file())
-
-    def test_reenabling_restores_all_override_files(self) -> None:
+    def test_global_toggle_disables_and_reenables_all_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             home = Path(temp_dir)
             user_dir = home / ".brscan-skey"
             setup_result = self._run_setup(home)
+
             disabled_result = self._run_toggle(home, False)
 
             self.assertEqual(setup_result.returncode, 0, setup_result.stderr)
@@ -171,13 +121,8 @@ class UserSetupTests(unittest.TestCase):
                 "enhanced_enabled = false",
                 (user_dir / "settings.ini").read_text(encoding="utf-8"),
             )
-            for name in (
-                "scantofile.config",
-                "scantoemail.config",
-                "scantoimage.config",
-            ):
+            for name in OVERRIDE_NAMES:
                 self.assertFalse((user_dir / name).exists())
-                self.assertTrue((user_dir / f"{name}.disabled").is_file())
 
             enabled_result = self._run_toggle(home, True)
 
@@ -186,13 +131,8 @@ class UserSetupTests(unittest.TestCase):
                 "enhanced_enabled = true",
                 (user_dir / "settings.ini").read_text(encoding="utf-8"),
             )
-            for name in (
-                "scantofile.config",
-                "scantoemail.config",
-                "scantoimage.config",
-            ):
+            for name in OVERRIDE_NAMES:
                 self.assertTrue((user_dir / name).is_file())
-                self.assertFalse((user_dir / f"{name}.disabled").exists())
 
 
 if __name__ == "__main__":

@@ -56,33 +56,30 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-if [ -z "$GUI_DEFAULT" ]; then
-    CURRENT_GUI=""
-    if [ -f "$APP_DIR/default-gui" ]; then
-        IFS= read -r CURRENT_GUI < "$APP_DIR/default-gui" || true
-        case "$CURRENT_GUI" in
-            gtk|qt) ;;
-            *) CURRENT_GUI="" ;;
-        esac
-    fi
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "Python 3 is required." >&2
+    exit 1
+fi
+if ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 10))'
+then
+    echo "Python 3.10 or newer is required." >&2
+    exit 1
+fi
 
+if [ -z "$GUI_DEFAULT" ]; then
     echo
     echo "Choose the default GUI for Brother Scan Settings:"
     echo "  1) GTK 3 (recommended)"
     echo "  2) Qt 6"
-    if [ "$CURRENT_GUI" = qt ]; then
-        DEFAULT_CHOICE=2
-    else
-        DEFAULT_CHOICE=1
-    fi
-    printf "Selection [%s]: " "$DEFAULT_CHOICE"
+    printf "Selection [1]: "
     if ! IFS= read -r GUI_CHOICE; then
         GUI_CHOICE=""
     fi
-    GUI_CHOICE="${GUI_CHOICE:-$DEFAULT_CHOICE}"
+    GUI_CHOICE="${GUI_CHOICE:-1}"
+    GUI_CHOICE="${GUI_CHOICE,,}"
     case "$GUI_CHOICE" in
-        1|gtk|GTK) GUI_DEFAULT=gtk ;;
-        2|qt|QT) GUI_DEFAULT=qt ;;
+        1|gtk) GUI_DEFAULT=gtk ;;
+        2|qt) GUI_DEFAULT=qt ;;
         *)
             echo "install.sh: select 1 for GTK or 2 for Qt" >&2
             exit 2
@@ -90,6 +87,43 @@ if [ -z "$GUI_DEFAULT" ]; then
     esac
 fi
 
+case "$GUI_DEFAULT" in
+    gtk)
+        if ! python3 -c \
+            'import gi; gi.require_version("Gtk", "3.0"); from gi.repository import Gtk'
+        then
+            echo "GTK 3 with PyGObject is required for --gui gtk." >&2
+            exit 1
+        fi
+        ;;
+    qt)
+        if ! python3 -c '
+import importlib
+import importlib.util
+
+module = (
+    "PySide6.QtWidgets"
+    if importlib.util.find_spec("PySide6")
+    else "PyQt6.QtWidgets"
+)
+importlib.import_module(module)
+'
+        then
+            echo "PySide6 or PyQt6 is required for --gui qt." >&2
+            exit 1
+        fi
+        ;;
+esac
+
+if ! command -v magick >/dev/null 2>&1; then
+    echo "Warning: ImageMagick 'magick' was not found." >&2
+fi
+if [ ! -x /opt/brother/scanner/brscan-skey/skey-scanimage ]; then
+    echo "Warning: Brother skey-scanimage was not found." >&2
+fi
+
+# Recreate only the application-owned tree so removed files cannot linger.
+rm -rf -- "$APP_DIR"
 install -d -m 0755 \
     "$APP_DIR/configurator" \
     "$APP_DIR/script" \
@@ -102,8 +136,7 @@ done
 for file in \
     scantofile.config \
     scantoemail.config \
-    scantoimage.config \
-    settings.ini.example
+    scantoimage.config
 do
     install -m 0644 "$PROJECT_DIR/$file" "$APP_DIR/$file"
 done
@@ -116,14 +149,11 @@ install -m 0755 \
 install -m 0755 \
     "$PROJECT_DIR/bin/brscan-skey-read-settings" \
     "$BIN_DIR/brscan-skey-read-settings"
-# Remove the launcher used by older releases; setup now happens on first launch.
-rm -f "$BIN_DIR/brscan-skey-setup-user"
 install -m 0644 \
     "$PROJECT_DIR/packaging/brscan-skey-config.desktop" \
     "$APPLICATIONS_DIR/brscan-skey-config.desktop"
-install -m 0644 \
-    "$PROJECT_DIR/packaging/default-gui.$GUI_DEFAULT" \
-    "$APP_DIR/default-gui"
+printf '%s\n' "$GUI_DEFAULT" |
+    install -m 0644 /dev/stdin "$APP_DIR/default-gui"
 
 echo
 echo "Installed brscan-skey-enhanced under $INSTALL_PREFIX"

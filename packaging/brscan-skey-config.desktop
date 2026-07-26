@@ -2,7 +2,8 @@
 Type=Application
 Name=Brother Scan Settings
 Comment=Configure per-user Brother brscan-skey scan profiles
-Exec=brscan-skey-config
+Exec=/usr/local/bin/brscan-skey-config
+TryExec=/usr/local/bin/brscan-skey-config
 Icon=scanner
 Terminal=false
 Categories=Settings;HardwareSettings;

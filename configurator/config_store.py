@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Read, validate, and atomically save Brother scan settings."""
 
 from __future__ import annotations
@@ -11,9 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-USER_CONFIG_DIR = Path(
-    os.environ.get("BRSCAN_SKEY_HOME", Path.home() / ".brscan-skey")
-).expanduser()
+USER_CONFIG_DIR = Path.home() / ".brscan-skey"
 CONFIG_PATH = USER_CONFIG_DIR / "settings.ini"
 DEFAULT_ENHANCED_ENABLED = True
 PROFILES = ("email", "file", "image")
@@ -24,14 +21,9 @@ PROFILE_LABELS = {
 }
 RESOLUTIONS = (100, 150, 200, 300, 600)
 PAPER_SIZES = ("A4", "A5", "Letter", "Legal")
-DEFAULTS = {
-    "email": {"resolution": 200, "paper_size": "A4", "duplex": False},
-    "file": {"resolution": 150, "paper_size": "A4", "duplex": False},
-    "image": {"resolution": 300, "paper_size": "A4", "duplex": False},
-}
 
 
-class ConfigurationError(ValueError):
+class ConfigurationError(Exception):
     """Raised when a setting is invalid or cannot be read."""
 
 
@@ -40,6 +32,13 @@ class ScanSettings:
     resolution: int
     paper_size: str
     duplex: bool
+
+
+DEFAULTS: dict[str, ScanSettings] = {
+    "email": ScanSettings(200, "A4", False),
+    "file": ScanSettings(150, "A4", False),
+    "image": ScanSettings(300, "A4", False),
+}
 
 
 def _validate_profile(profile: str) -> None:
@@ -76,57 +75,53 @@ def _new_parser() -> configparser.ConfigParser:
 
 
 def _read_parser(path: Path) -> configparser.ConfigParser:
+    if not path.is_file():
+        raise ConfigurationError(f"Configuration file not found: {path}")
+
     parser = _new_parser()
-    if path.exists():
-        try:
-            with path.open("r", encoding="utf-8") as config_file:
-                parser.read_file(config_file)
-        except (OSError, configparser.Error) as exc:
-            raise ConfigurationError(f"Cannot read {path}: {exc}") from exc
+    try:
+        with path.open("r", encoding="utf-8") as config_file:
+            parser.read_file(config_file)
+    except (OSError, configparser.Error) as exc:
+        raise ConfigurationError(f"Cannot read {path}: {exc}") from exc
     return parser
 
 
 def load_enhanced_enabled(path: Path = CONFIG_PATH) -> bool:
     parser = _read_parser(path)
     try:
-        return parser.getboolean(
-            "general",
-            "enhanced_enabled",
-            fallback=DEFAULT_ENHANCED_ENABLED,
-        )
-    except ValueError as exc:
+        return parser.getboolean("general", "enhanced_enabled")
+    except (configparser.Error, ValueError) as exc:
         raise ConfigurationError(
-            "Invalid enhanced_enabled value in [general]."
+            "Missing or invalid enhanced_enabled value in [general]."
         ) from exc
+
+
+def _load_profile_from_parser(
+    parser: configparser.ConfigParser, profile: str
+) -> ScanSettings:
+    try:
+        resolution = parser.get(profile, "resolution")
+        paper_size = parser.get(profile, "paper_size")
+        duplex = parser.getboolean(profile, "duplex")
+    except (configparser.Error, ValueError) as exc:
+        raise ConfigurationError(
+            f"Missing or invalid setting in [{profile}]."
+        ) from exc
+    return validate(resolution, paper_size, duplex)
 
 
 def load_all(path: Path = CONFIG_PATH) -> dict[str, ScanSettings]:
     parser = _read_parser(path)
-
-    settings: dict[str, ScanSettings] = {}
-    for profile in PROFILES:
-        defaults = DEFAULTS[profile]
-        resolution = parser.get(
-            profile, "resolution", fallback=str(defaults["resolution"])
-        )
-        paper_size = parser.get(
-            profile, "paper_size", fallback=str(defaults["paper_size"])
-        )
-        try:
-            duplex = parser.getboolean(
-                profile, "duplex", fallback=bool(defaults["duplex"])
-            )
-        except ValueError as exc:
-            raise ConfigurationError(
-                f"Invalid duplex value in [{profile}]."
-            ) from exc
-        settings[profile] = validate(resolution, paper_size, duplex)
-    return settings
+    return {
+        profile: _load_profile_from_parser(parser, profile)
+        for profile in PROFILES
+    }
 
 
 def load_profile(profile: str, path: Path = CONFIG_PATH) -> ScanSettings:
     _validate_profile(profile)
-    return load_all(path)[profile]
+    return _load_profile_from_parser(_read_parser(path), profile)
 
 
 def _write_parser(
@@ -175,7 +170,6 @@ def save_all(
         "enhanced_enabled": "true" if enhanced_enabled else "false"
     }
     for profile in PROFILES:
-        _validate_profile(profile)
         if profile not in settings:
             raise ConfigurationError(f"Missing scan profile: {profile}")
         value = validate(
@@ -203,12 +197,15 @@ def save_enhanced_enabled(
 
 
 def restore_defaults() -> dict[str, ScanSettings]:
-    return {
-        profile: validate(
-            values["resolution"], values["paper_size"], values["duplex"]
-        )
-        for profile, values in DEFAULTS.items()
-    }
+    return dict(DEFAULTS)
+
+
+def create_default_settings(path: Path = CONFIG_PATH) -> None:
+    save_all(
+        restore_defaults(),
+        path,
+        enhanced_enabled=DEFAULT_ENHANCED_ENABLED,
+    )
 
 
 def export_for_scanner(profile: str) -> int:

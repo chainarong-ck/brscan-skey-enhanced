@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
 """Select and launch an installed Brother scan settings frontend."""
 
 from __future__ import annotations
 
 import argparse
+import importlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -28,12 +28,7 @@ def _gtk_available() -> bool:
 
 
 def _load_main(module_name: str):
-    if __package__:
-        module = __import__(
-            f"{__package__}.{module_name}", fromlist=["main"]
-        )
-    else:
-        module = __import__(module_name, fromlist=["main"])
+    module = importlib.import_module(f".{module_name}", package=__package__)
     return module.main
 
 

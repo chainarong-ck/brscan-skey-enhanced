@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 """Qt frontend for Brother scan settings (PySide6 or PyQt6)."""
 
 from __future__ import annotations
 
 import sys
 
-QT_API = ""
 try:
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import (
@@ -18,13 +16,11 @@ try:
         QHBoxLayout,
         QLabel,
         QMessageBox,
-        QPushButton,
         QTabWidget,
         QVBoxLayout,
         QWidget,
     )
 
-    QT_API = "PySide6"
 except ImportError:
     try:
         from PyQt6.QtCore import Qt
@@ -38,13 +34,11 @@ except ImportError:
             QHBoxLayout,
             QLabel,
             QMessageBox,
-            QPushButton,
             QTabWidget,
             QVBoxLayout,
             QWidget,
         )
 
-        QT_API = "PyQt6"
     except ImportError:
         print(
             "Qt GUI requires PySide6 or PyQt6. "
@@ -53,46 +47,25 @@ except ImportError:
         )
         raise SystemExit(1)
 
-try:
-    from .config_store import (
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        PAPER_SIZES,
-        PROFILES,
-        PROFILE_LABELS,
-        RESOLUTIONS,
-        ConfigurationError,
-        ScanSettings,
-        load_all,
-        load_enhanced_enabled,
-        restore_defaults,
-        save_all,
-    )
-    from .user_setup import (
-        UserSetupError,
-        ensure_user_installation,
-        set_enhanced_enabled,
-    )
-except ImportError:
-    from config_store import (  # type: ignore
-        CONFIG_PATH,
-        DEFAULT_ENHANCED_ENABLED,
-        PAPER_SIZES,
-        PROFILES,
-        PROFILE_LABELS,
-        RESOLUTIONS,
-        ConfigurationError,
-        ScanSettings,
-        load_all,
-        load_enhanced_enabled,
-        restore_defaults,
-        save_all,
-    )
-    from user_setup import (  # type: ignore
-        UserSetupError,
-        ensure_user_installation,
-        set_enhanced_enabled,
-    )
+from .config_store import (
+    CONFIG_PATH,
+    DEFAULT_ENHANCED_ENABLED,
+    PAPER_SIZES,
+    PROFILES,
+    PROFILE_LABELS,
+    RESOLUTIONS,
+    ConfigurationError,
+    ScanSettings,
+    load_all,
+    load_enhanced_enabled,
+    restore_defaults,
+    save_all,
+)
+from .user_setup import (
+    UserSetupError,
+    ensure_user_installation,
+    set_enhanced_enabled,
+)
 
 
 class SettingsDialog(QDialog):
@@ -133,7 +106,7 @@ class SettingsDialog(QDialog):
                 resolution.addItem(f"{value} DPI", value)
             paper = QComboBox()
             paper.addItems(PAPER_SIZES)
-            duplex = QCheckBox("Use automatic document feeder")
+            duplex = QCheckBox("Scan both sides using ADF")
             form.addRow("Resolution", resolution)
             form.addRow("Paper size", paper)
             form.addRow("Duplex", duplex)
@@ -196,8 +169,11 @@ class SettingsDialog(QDialog):
 
     def _save(self) -> None:
         try:
-            save_all(self._collect())
-        except ConfigurationError as exc:
+            save_all(
+                self._collect(),
+                enhanced_enabled=self._enabled_state,
+            )
+        except (ConfigurationError, TypeError, ValueError) as exc:
             self._error(str(exc))
             return
         self.status.setText(f"Saved: {CONFIG_PATH}")
