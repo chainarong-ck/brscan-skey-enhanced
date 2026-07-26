@@ -141,8 +141,22 @@ class PackageTests(unittest.TestCase):
                 "source PKGBUILD\n"
                 "archive=\"${pkgname}-${pkgver}.tar.gz\"\n"
                 "test -f \"$archive\"\n"
-                "tar -tzf \"$archive\" | "
-                "grep -q \"${pkgname}-${pkgver}/LICENSE\"\n"
+                "tar -tzf \"$archive\" > archive-contents.txt\n"
+                "grep -Fxq \"${pkgname}-${pkgver}/LICENSE\" "
+                "archive-contents.txt\n"
+                "if grep -Fqx \"${pkgname}-${pkgver}/"
+                ".github/workflows/test.yml\" archive-contents.txt; then\n"
+                "    echo 'CI workflow leaked into source archive' >&2\n"
+                "    exit 1\n"
+                "fi\n"
+                "mkdir extracted\n"
+                "tar -xzf \"$archive\" -C extracted\n"
+                "(\n"
+                "    cd \"extracted/${pkgname}-${pkgver}\"\n"
+                "    PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v "
+                "tests.test_packaging.PackageTests."
+                "test_arch_ci_builds_and_installs_native_package\n"
+                ")\n"
                 "touch \"$PKGDEST/"
                 "${pkgname}-${pkgver}-${pkgrel}-any.pkg.tar.zst\"\n",
                 encoding="utf-8",
@@ -173,10 +187,19 @@ class PackageTests(unittest.TestCase):
                 f"brscan-skey-enhanced-{version}-1-any.pkg.tar.zst",
             )
 
+    def test_native_source_archives_exclude_ci_workflow(self) -> None:
+        for builder_name in ("build-arch.sh", "build-rpm.sh"):
+            with self.subTest(builder=builder_name):
+                builder = (
+                    PROJECT_DIR / "packaging" / builder_name
+                ).read_text(encoding="utf-8")
+                self.assertNotIn(".github/workflows/test.yml", builder)
+
     def test_arch_ci_builds_and_installs_native_package(self) -> None:
-        workflow = (
-            PROJECT_DIR / ".github/workflows/test.yml"
-        ).read_text(encoding="utf-8")
+        workflow_path = PROJECT_DIR / ".github/workflows/test.yml"
+        if not workflow_path.is_file():
+            self.skipTest("CI workflow is not part of the source package")
+        workflow = workflow_path.read_text(encoding="utf-8")
 
         self.assertIn("package_format: arch", workflow)
         self.assertIn("./packaging/build-arch.sh", workflow)
