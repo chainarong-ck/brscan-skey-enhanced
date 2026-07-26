@@ -1,0 +1,206 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    name: Build DEB package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: ubuntu:24.04
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash \
+            ca-certificates \
+            dpkg-dev \
+            git \
+            python3
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Verify tag matches VERSION file
+        shell: bash
+        run: |
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$file_version" != "$tag_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION file ($file_version)"
+            exit 1
+          fi
+
+      - name: Run unit tests
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build DEB package
+        shell: bash
+        run: |
+          ./packaging/build-deb.sh
+          dpkg-deb --info dist/*.deb
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: dist/*.deb
+          retention-days: 1
+
+  build-rpm:
+    name: Build RPM package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            bash \
+            ca-certificates \
+            git \
+            python3 \
+            rpm-build
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run unit tests
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build RPM package
+        shell: bash
+        run: |
+          ./packaging/build-rpm.sh
+          rpm -qpl dist/*.noarch.rpm
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: dist/*.rpm
+          retention-days: 1
+
+  build-arch:
+    name: Build Arch package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm \
+            base-devel \
+            bash \
+            ca-certificates \
+            git \
+            gtk3 \
+            python \
+            python-gobject
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run unit tests
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Build Arch package
+        shell: bash
+        run: |
+          useradd --create-home package-builder
+          chown -R package-builder:package-builder "$GITHUB_WORKSPACE"
+          runuser -u package-builder -- \
+            env HOME=/home/package-builder \
+            bash -c \
+            "cd '$GITHUB_WORKSPACE' && ./packaging/build-arch.sh"
+
+      - name: Upload Arch artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-package
+          path: dist/*.pkg.tar.zst
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: [build-deb, build-rpm, build-arch]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -lh dist/
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            echo "## Installation"
+            echo ""
+            echo "### Debian / Ubuntu"
+            echo '```bash'
+            echo "sudo apt install ./brscan-skey-enhanced_${version}-1_all.deb"
+            echo '```'
+            echo ""
+            echo "### Fedora / RHEL / AlmaLinux"
+            echo '```bash'
+            echo "sudo dnf install ./brscan-skey-enhanced-${version}-1.*.noarch.rpm"
+            echo '```'
+            echo ""
+            echo "### Arch Linux"
+            echo '```bash'
+            echo "sudo pacman -U ./brscan-skey-enhanced-${version}-1-any.pkg.tar.zst"
+            echo '```'
+            echo ""
+            echo "### Manual install (any distro)"
+            echo '```bash'
+            echo "sudo ./install.sh"
+            echo '```'
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          append_body: true
+          files: dist/*
