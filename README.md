@@ -47,7 +47,8 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 
 ## ความสามารถ
 
-- บันทึกเอกสารที่สแกนเป็น PDF หรือ JPEG
+- บันทึกเอกสารที่สแกนเป็น PDF หรือ JPEG เมื่อมี ImageMagick
+- บันทึกเป็น TIFF โดยอัตโนมัติเมื่อไม่มี ImageMagick
 - รองรับกระจกสแกนและ ADF แบบสองหน้า
 - ตั้งค่าความละเอียดและขนาดกระดาษแยกตามปุ่มได้
 - เปิดหรือปิด override ทั้งหมดได้จากสวิตช์เดียวใน GUI
@@ -59,11 +60,11 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 
 - Linux และ Python 3.9 ขึ้นไป
 - ไดรเวอร์เครื่องสแกน Brother พร้อม `brscan-skey`
-- ImageMagick ที่มีคำสั่ง `magick` (ImageMagick 7) หรือ `convert`
-  (ImageMagick 6)
 - GUI อย่างใดอย่างหนึ่ง:
   - GTK 3 พร้อม PyGObject (แนะนำ) หรือ
   - PySide6/PyQt6
+- ImageMagick ที่มีคำสั่ง `magick` (ImageMagick 7) หรือ `convert`
+  (ImageMagick 6) เป็นส่วนเสริมสำหรับแปลง TIFF เป็น PDF/JPEG
 - `xdg-open` และ `xdg-email` เป็นส่วนเสริม
 
 สำหรับ Debian/Ubuntu สามารถติดตั้ง GTK frontend และเครื่องมือที่จำเป็นได้
@@ -83,7 +84,7 @@ sudo apt install python3-gi gir1.2-gtk-3.0 imagemagick xdg-utils
 ```bash
 sudo apt install dpkg-dev
 ./packaging/build-deb.sh
-sudo apt install ./dist/brscan-skey-enhanced_0.1.0-1_all.deb
+sudo apt install ./dist/brscan-skey-enhanced_1.0.0-1_all.deb
 ```
 
 `apt` จะติดตั้ง GTK 3 frontend และ dependency ที่จำเป็นตาม metadata
@@ -96,7 +97,7 @@ sudo apt install ./dist/brscan-skey-enhanced_0.1.0-1_all.deb
 ```bash
 sudo dnf install rpm-build
 ./packaging/build-rpm.sh
-sudo dnf install ./dist/brscan-skey-enhanced-0.1.0-1*.noarch.rpm
+sudo dnf install ./dist/brscan-skey-enhanced-1.0.0-1*.noarch.rpm
 ```
 
 สคริปต์จะสร้างทั้ง binary RPM แบบ `noarch` และ source RPM ใน `dist/`
@@ -187,10 +188,13 @@ brscan-skey-config --qt
 
 แต่ละโปรไฟล์รองรับ:
 
-- ความละเอียด 100, 150, 200, 300, 400, 600, 1200, 2400, 4800 หรือ
-  9600 DPI
+- ความละเอียด 100, 150, 200, 300, 400, 600 หรือ 1200 DPI
 - ขนาดกระดาษ A3, A4, A5, A6, Letter หรือ Legal
 - การสแกนสองหน้าผ่าน ADF
+
+รายการข้างต้นเป็นตัวเลือกกลางที่ไดรเวอร์ `brscan-skey` รองรับ
+ความละเอียด ขนาดกระดาษ และ Duplex ที่ใช้งานได้จริงขึ้นอยู่กับรุ่น
+เครื่องสแกน
 
 ## ใช้งาน
 
@@ -216,6 +220,10 @@ brscan-skey -l
 พร้อมแนบ PDF ให้อัตโนมัติ หากไม่มี `xdg-email` ไฟล์ PDF จะยังถูกเก็บไว้
 ใน `~/brscan` โฟลเดอร์และไฟล์สแกนที่โปรแกรมสร้างจะอนุญาตให้เฉพาะ
 ผู้ใช้เจ้าของบัญชีเข้าถึง
+
+หากไม่มี ImageMagick โปรแกรมจะเก็บ TIFF โดยไม่ถือว่าเป็นข้อผิดพลาด
+และโปรไฟล์ Email จะแนบ TIFF แทน PDF สำหรับ Scan to Image แบบหลายหน้า
+โปรแกรมจะสร้าง JPEG แยกตามหน้าโดยเติม `-0`, `-1`, ... ต่อท้ายชื่อไฟล์
 
 ดู log ล่าสุดได้ด้วย:
 
@@ -249,9 +257,10 @@ sudo ./install.sh
 
 ## ถอนการติดตั้ง
 
-ก่อนถอนการติดตั้ง ให้ผู้ใช้แต่ละคนปิดสวิตช์
-**Use enhanced scan actions** เพื่อคืนการทำงานให้ไดรเวอร์ Brother ก่อน
-เนื่องจากตัวถอนการติดตั้งจะไม่แก้ไขไฟล์ใด ๆ ใน home ของผู้ใช้
+แนะนำให้ผู้ใช้แต่ละคนปิดสวิตช์ **Use enhanced scan actions** ก่อน
+ถอนการติดตั้ง ตัวถอนการติดตั้งจะไม่ไล่แก้ไฟล์ใน home ของผู้ใช้ แต่หากมี
+ไฟล์ override ค้างอยู่ ไฟล์นั้นจะตรวจพบว่าสคริปต์ส่วนกลางถูกลบแล้ว
+ลบตัวเอง และปล่อยให้ไดรเวอร์ Brother กลับไปใช้การทำงานเดิม
 
 ```bash
 sudo apt remove brscan-skey-enhanced     # เมื่อติดตั้งด้วย DEB
@@ -261,6 +270,10 @@ sudo ./uninstall.sh                      # เมื่อติดตั้ง�
 
 ตัวถอนการติดตั้งจะลบเฉพาะโปรแกรมส่วนกลาง และเก็บ
 `~/.brscan-skey/settings.ini` รวมถึงไฟล์ของผู้ใช้ไว้เพื่อป้องกันข้อมูลสูญหาย
+
+## สัญญาอนุญาต
+
+เผยแพร่ภายใต้ MIT License ดูรายละเอียดในไฟล์ `LICENSE`
 
 ## ตรวจสอบ source
 

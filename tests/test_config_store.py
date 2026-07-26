@@ -28,7 +28,7 @@ class PerUserConfigurationTests(unittest.TestCase):
     def test_all_supported_scan_options_are_accepted(self) -> None:
         self.assertEqual(
             RESOLUTIONS,
-            (100, 150, 200, 300, 400, 600, 1200, 2400, 4800, 9600),
+            (100, 150, 200, 300, 400, 600, 1200),
         )
         self.assertEqual(
             PAPER_SIZES,
@@ -153,6 +153,43 @@ class PerUserConfigurationTests(unittest.TestCase):
 
             self.assertFalse(load_enhanced_enabled(path))
             self.assertEqual(load_all(path), before)
+
+    def test_saving_disabled_state_repairs_invalid_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "settings.ini"
+            create_default_settings(path)
+            parser = configparser.ConfigParser()
+            parser.read(path, encoding="utf-8")
+            parser["email"]["resolution"] = "invalid"
+            parser["file"] = {
+                "resolution": "600",
+                "paper_size": "Legal",
+                "duplex": "true",
+            }
+            with path.open("w", encoding="utf-8") as config_file:
+                parser.write(config_file)
+
+            save_enhanced_enabled(False, path)
+
+            self.assertFalse(load_enhanced_enabled(path))
+            settings = load_all(path)
+            self.assertEqual(settings["email"].resolution, 200)
+            self.assertEqual(settings["file"].resolution, 600)
+            self.assertEqual(settings["file"].paper_size, "Legal")
+            self.assertTrue(settings["file"].duplex)
+
+    def test_saving_disabled_state_recovers_unparseable_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "settings.ini"
+            path.write_text("[broken\n", encoding="utf-8")
+
+            save_enhanced_enabled(False, path)
+
+            self.assertFalse(load_enhanced_enabled(path))
+            settings = load_all(path)
+            self.assertEqual(settings["email"].resolution, 200)
+            self.assertEqual(settings["file"].resolution, 150)
+            self.assertEqual(settings["image"].resolution, 300)
 
 
 if __name__ == "__main__":

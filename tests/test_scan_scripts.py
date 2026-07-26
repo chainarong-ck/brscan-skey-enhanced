@@ -160,6 +160,108 @@ class ScanScriptTests(unittest.TestCase):
         self.assertIn("ADF_C", arguments)
         self.assertIn("--duplex", arguments)
 
+    def test_nonzero_scanner_exit_rejects_a_partial_output(self) -> None:
+        self._write_executable(
+            self.scanner,
+            "#!/bin/bash\n"
+            "output=''\n"
+            "while [ \"$#\" -gt 0 ]; do\n"
+            "    if [ \"$1\" = --outputfile ]; then\n"
+            "        output=\"$2\"\n"
+            "        shift 2\n"
+            "    else\n"
+            "        shift\n"
+            "    fi\n"
+            "done\n"
+            "printf 'partial TIFF\\n' > \"$output\"\n"
+            "exit 7\n",
+        )
+
+        result = self._run("brother-scan-to-file.sh")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("scanner exited with status 7", result.stderr)
+        self.assertEqual(list(self.output_dir.iterdir()), [])
+
+    def test_duplex_image_scan_saves_multiple_jpegs(self) -> None:
+        self._write_executable(
+            self.reader,
+            "#!/bin/sh\nprintf '600\\nLegal\\nON\\n'\n",
+        )
+        self._write_executable(
+            self.bin_dir / "magick",
+            "#!/bin/bash\n"
+            "output=\"${!#}\"\n"
+            "base=\"${output%.jpg}\"\n"
+            "cp -- \"$1\" \"${base}-0.jpg\"\n"
+            "cp -- \"$1\" \"${base}-1.jpg\"\n",
+        )
+
+        result = self._run("brother-scan-to-image.sh")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        outputs = sorted(self.output_dir.glob("brscan_image_*.jpg"))
+        self.assertEqual(len(outputs), 2)
+        self.assertTrue(outputs[0].name.endswith("-0.jpg"))
+        self.assertTrue(outputs[1].name.endswith("-1.jpg"))
+        self.assertEqual(list(self.output_dir.glob("*.tif")), [])
+
+    def test_missing_imagemagick_saves_file_scan_as_tiff(self) -> None:
+        environment = self._environment()
+        environment["BRSCAN_IMAGE_CONVERTER"] = str(
+            self.bin_dir / "missing-converter"
+        )
+
+        result = self._run(
+            "brother-scan-to-file.sh",
+            environment=environment,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            len(list(self.output_dir.glob("brscan_file_*.tif"))),
+            1,
+        )
+        self.assertEqual(list(self.output_dir.glob("*.pdf")), [])
+
+    def test_missing_imagemagick_saves_image_scan_as_tiff(self) -> None:
+        environment = self._environment()
+        environment["BRSCAN_IMAGE_CONVERTER"] = str(
+            self.bin_dir / "missing-converter"
+        )
+
+        result = self._run(
+            "brother-scan-to-image.sh",
+            environment=environment,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            len(list(self.output_dir.glob("brscan_image_*.tif"))),
+            1,
+        )
+        self.assertEqual(list(self.output_dir.glob("*.jpg")), [])
+
+    def test_missing_imagemagick_attaches_tiff_to_email(self) -> None:
+        environment = self._environment()
+        environment["BRSCAN_IMAGE_CONVERTER"] = str(
+            self.bin_dir / "missing-converter"
+        )
+
+        result = self._run(
+            "brother-scan-to-email.sh",
+            environment=environment,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        arguments = self.email_log.read_text(encoding="utf-8")
+        self.assertIn("--attach\n", arguments)
+        self.assertIn(".tif\n", arguments)
+        self.assertEqual(
+            len(list(self.output_dir.glob("brscan_email_*.tif"))),
+            1,
+        )
+
     def test_scan_to_email_attaches_pdf(self) -> None:
         result = self._run("brother-scan-to-email.sh")
 

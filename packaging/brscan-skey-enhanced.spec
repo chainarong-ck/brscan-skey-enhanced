@@ -1,10 +1,10 @@
-%{!?package_version:%global package_version 0.1.0}
+%{!?package_version:%global package_version 1.0.0}
 
 Name:           brscan-skey-enhanced
 Version:        %{package_version}
 Release:        1%{?dist}
 Summary:        Enhanced Brother scanner button actions and settings GUI
-License:        LicenseRef-Unknown
+License:        MIT
 URL:            https://github.com/chainarong-ck/brscan-skey-enhanced
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch

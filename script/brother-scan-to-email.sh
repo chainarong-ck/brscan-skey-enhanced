@@ -12,17 +12,20 @@ convert_scan_to_pdf "$OUTPUT" "Scan to Email" || exit 1
 if command -v xdg-email >/dev/null 2>&1; then
     if xdg-email \
         --utf8 \
-        --attach "$OUTPUT" \
+        --attach "$BRSCAN_PRIMARY_OUTPUT" \
         --subject "Scanned document ${BRSCAN_STAMP}" \
-        --body "Scanned document saved at: $OUTPUT" \
+        --body "Scanned document saved at: $BRSCAN_PRIMARY_OUTPUT" \
         >/dev/null 2>&1
     then
-        brscan_log "Opened the default email composer with attachment: $OUTPUT"
+        brscan_log \
+            "Opened the default email composer with attachment: $BRSCAN_PRIMARY_OUTPUT"
     else
-        brscan_log "Could not open the email composer; PDF preserved: $OUTPUT"
+        brscan_log \
+            "Could not open the email composer; scan preserved: $BRSCAN_PRIMARY_OUTPUT"
     fi
 else
-    brscan_log "xdg-email is unavailable; PDF preserved: $OUTPUT"
+    brscan_log \
+        "xdg-email is unavailable; scan preserved: $BRSCAN_PRIMARY_OUTPUT"
 fi
 
 exit 0

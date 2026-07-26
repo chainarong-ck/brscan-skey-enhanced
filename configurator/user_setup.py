@@ -146,8 +146,12 @@ def ensure_user_installation() -> Path:
 
     try:
         enabled = load_enhanced_enabled()
-    except ConfigurationError:
-        enabled = DEFAULT_ENHANCED_ENABLED
+    except ConfigurationError as exc:
+        enabled = False
+        try:
+            save_enhanced_enabled(enabled)
+        except ConfigurationError as save_exc:
+            raise UserSetupError(str(save_exc)) from exc
     apply_override_state(enabled)
 
     return USER_CONFIG_DIR

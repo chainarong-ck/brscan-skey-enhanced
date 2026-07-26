@@ -64,6 +64,10 @@ class DebianPackageTests(unittest.TestCase):
                 "./usr/share/applications/brscan-skey-config.desktop",
                 contents,
             )
+            self.assertIn(
+                "./usr/share/doc/brscan-skey-enhanced/LICENSE",
+                contents,
+            )
 
             control_dir = Path(temp_dir) / "control"
             subprocess.run(
@@ -94,6 +98,8 @@ class DebianPackageTests(unittest.TestCase):
             "%{_prefix}/lib/%{name}/configurator/__pycache__",
             spec,
         )
+        self.assertIn("License:        MIT", spec)
+        self.assertNotIn("LicenseRef-Unknown", spec)
 
 
 if __name__ == "__main__":

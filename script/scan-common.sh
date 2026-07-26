@@ -9,6 +9,8 @@ BRSCAN_SCANNER="${BRSCAN_SCANNER:-/opt/brother/scanner/brscan-skey/skey-scanimag
 BRSCAN_SETTINGS_READER="${BRSCAN_SETTINGS_READER:-$BRSCAN_INSTALL_PREFIX/bin/brscan-skey-read-settings}"
 BRSCAN_OUTPUT_DIR="${BRSCAN_OUTPUT_DIR:-${HOME:?HOME is not set}/brscan}"
 BRSCAN_TEMP=""
+BRSCAN_PRIMARY_OUTPUT=""
+BRSCAN_IMAGE_OUTPUTS=()
 
 if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ]; then
     if command -v magick >/dev/null 2>&1; then
@@ -69,6 +71,7 @@ start_scan() {
     local device="$3"
     local source
     local attempt
+    local scan_status=0
     local -a scan_args
 
     if [ -z "$device" ]; then
@@ -116,9 +119,13 @@ start_scan() {
 
     for attempt in 1 2; do
         rm -f -- "$BRSCAN_TEMP"
-        "$BRSCAN_SCANNER" "${scan_args[@]}"
-        if [ -s "$BRSCAN_TEMP" ]; then
-            return 0
+        if "$BRSCAN_SCANNER" "${scan_args[@]}"; then
+            scan_status=0
+            if [ -s "$BRSCAN_TEMP" ]; then
+                return 0
+            fi
+        else
+            scan_status=$?
         fi
         if [ "$attempt" -eq 1 ]; then
             sleep 1
@@ -126,18 +133,26 @@ start_scan() {
     done
 
     rm -f -- "$BRSCAN_TEMP"
-    brscan_log "$profile scan failed: no image was created"
+    if [ "$scan_status" -ne 0 ]; then
+        brscan_log \
+            "$profile scan failed: scanner exited with status $scan_status"
+    else
+        brscan_log "$profile scan failed: no image was created"
+    fi
     return 1
 }
 
 preserve_scan_as_tiff() {
     local reason="$1"
+    local result="${2:-1}"
     local fallback="${BRSCAN_OUTPUT_BASE}.tif"
 
     if mv -- "$BRSCAN_TEMP" "$fallback"; then
-        brscan_log "$reason; TIFF preserved: $fallback"
+        BRSCAN_PRIMARY_OUTPUT="$fallback"
+        brscan_log "$reason: $fallback"
+        return "$result"
     else
-        brscan_log "$reason; could not preserve temporary TIFF: $BRSCAN_TEMP"
+        brscan_log "$reason; could not save temporary TIFF: $BRSCAN_TEMP"
     fi
     return 1
 }
@@ -149,8 +164,10 @@ convert_scan_to_pdf() {
     if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ] ||
         ! command -v "$BRSCAN_IMAGE_CONVERTER" >/dev/null 2>&1
     then
-        preserve_scan_as_tiff "$action failed: ImageMagick is unavailable"
-        return 1
+        preserve_scan_as_tiff \
+            "$action saved as TIFF because ImageMagick is unavailable" \
+            0
+        return
     fi
     if "$BRSCAN_IMAGE_CONVERTER" "$BRSCAN_TEMP" \
         -units PixelsPerInch \
@@ -159,22 +176,31 @@ convert_scan_to_pdf() {
         [ -s "$output" ]
     then
         rm -f -- "$BRSCAN_TEMP"
+        BRSCAN_PRIMARY_OUTPUT="$output"
         brscan_log "$action saved: $output"
         return 0
     fi
 
     rm -f -- "$output"
-    preserve_scan_as_tiff "$action PDF conversion failed"
+    preserve_scan_as_tiff "$action PDF conversion failed; TIFF preserved"
 }
 
 convert_scan_to_jpeg() {
     local output="$1"
+    local page
+    local nullglob_was_set=false
+    local -a numbered_outputs=()
+
+    BRSCAN_IMAGE_OUTPUTS=()
+    BRSCAN_PRIMARY_OUTPUT=""
 
     if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ] ||
         ! command -v "$BRSCAN_IMAGE_CONVERTER" >/dev/null 2>&1
     then
-        preserve_scan_as_tiff "Scan to Image failed: ImageMagick is unavailable"
-        return 1
+        preserve_scan_as_tiff \
+            "Scan to Image saved as TIFF because ImageMagick is unavailable" \
+            0
+        return
     fi
     if "$BRSCAN_IMAGE_CONVERTER" "$BRSCAN_TEMP" \
         -background white \
@@ -184,13 +210,52 @@ convert_scan_to_jpeg() {
         -density "$BRSCAN_RESOLUTION" \
         -quality 92 \
         "$output" &&
-        [ -s "$output" ]
+        {
+            if [ -s "$output" ]; then
+                BRSCAN_IMAGE_OUTPUTS=("$output")
+            else
+                if shopt -q nullglob; then
+                    nullglob_was_set=true
+                else
+                    shopt -s nullglob
+                fi
+                numbered_outputs=("${output%.*}-"*.jpg)
+                if ! $nullglob_was_set; then
+                    shopt -u nullglob
+                fi
+
+                for page in "${numbered_outputs[@]}"; do
+                    if [ ! -s "$page" ]; then
+                        BRSCAN_IMAGE_OUTPUTS=()
+                        break
+                    fi
+                    BRSCAN_IMAGE_OUTPUTS+=("$page")
+                done
+            fi
+            [ "${#BRSCAN_IMAGE_OUTPUTS[@]}" -gt 0 ]
+        }
     then
         rm -f -- "$BRSCAN_TEMP"
-        brscan_log "Scan to Image saved: $output"
+        BRSCAN_PRIMARY_OUTPUT="${BRSCAN_IMAGE_OUTPUTS[0]}"
+        brscan_log \
+            "Scan to Image saved ${#BRSCAN_IMAGE_OUTPUTS[@]} JPEG file(s)"
         return 0
     fi
 
     rm -f -- "$output"
-    preserve_scan_as_tiff "Scan to Image JPEG conversion failed"
+    if shopt -q nullglob; then
+        nullglob_was_set=true
+    else
+        nullglob_was_set=false
+        shopt -s nullglob
+    fi
+    numbered_outputs=("${output%.*}-"*.jpg)
+    if ! $nullglob_was_set; then
+        shopt -u nullglob
+    fi
+    if [ "${#numbered_outputs[@]}" -gt 0 ]; then
+        rm -f -- "${numbered_outputs[@]}"
+    fi
+    preserve_scan_as_tiff \
+        "Scan to Image JPEG conversion failed; TIFF preserved"
 }

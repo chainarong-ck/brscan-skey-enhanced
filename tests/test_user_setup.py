@@ -134,6 +134,59 @@ class UserSetupTests(unittest.TestCase):
             for name in OVERRIDE_NAMES:
                 self.assertTrue((user_dir / name).is_file())
 
+    def test_toggle_off_repairs_a_corrupt_scan_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir)
+            user_dir = home / ".brscan-skey"
+            setup_result = self._run_setup(home)
+            settings_path = user_dir / "settings.ini"
+            settings_path.write_text(
+                settings_path.read_text(encoding="utf-8").replace(
+                    "resolution = 300",
+                    "resolution = invalid",
+                ),
+                encoding="utf-8",
+            )
+
+            disabled_result = self._run_toggle(home, False)
+
+            self.assertEqual(setup_result.returncode, 0, setup_result.stderr)
+            self.assertEqual(
+                disabled_result.returncode,
+                0,
+                disabled_result.stderr,
+            )
+            settings_content = settings_path.read_text(encoding="utf-8")
+            self.assertIn("enhanced_enabled = false", settings_content)
+            self.assertNotIn("resolution = invalid", settings_content)
+            for name in OVERRIDE_NAMES:
+                self.assertFalse((user_dir / name).exists())
+
+    def test_setup_fails_closed_when_enabled_state_is_corrupt(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir)
+            user_dir = home / ".brscan-skey"
+            first_result = self._run_setup(home)
+            settings_path = user_dir / "settings.ini"
+            settings_path.write_text(
+                settings_path.read_text(encoding="utf-8").replace(
+                    "enhanced_enabled = true",
+                    "enhanced_enabled = invalid",
+                ),
+                encoding="utf-8",
+            )
+
+            second_result = self._run_setup(home)
+
+            self.assertEqual(first_result.returncode, 0, first_result.stderr)
+            self.assertEqual(second_result.returncode, 0, second_result.stderr)
+            self.assertIn(
+                "enhanced_enabled = false",
+                settings_path.read_text(encoding="utf-8"),
+            )
+            for name in OVERRIDE_NAMES:
+                self.assertFalse((user_dir / name).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

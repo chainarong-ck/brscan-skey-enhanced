@@ -232,6 +232,51 @@ class PrefixAwareScanConfigTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "device\n")
 
+    def test_stale_user_overrides_remove_themselves(self) -> None:
+        config_names = (
+            "scantofile.config",
+            "scantoemail.config",
+            "scantoimage.config",
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = Path(temp_dir)
+            user_dir = home / ".brscan-skey"
+            user_dir.mkdir()
+            environment = os.environ.copy()
+            environment["HOME"] = str(home)
+            environment["BRSCAN_APP_DIR"] = str(home / "missing-app")
+
+            for config_name in config_names:
+                override = user_dir / config_name
+                override.write_text(
+                    (PROJECT_DIR / config_name).read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+
+                result = subprocess.run(
+                    [
+                        "/bin/bash",
+                        "-c",
+                        "set -u; source \"$1\"; "
+                        "printf 'driver-default:%s:%s:%s\\n' "
+                        '"$resolution" "$size" "$duplex"',
+                        "bash",
+                        str(override),
+                    ],
+                    env=environment,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    result.stdout,
+                    "driver-default:100:A4:OFF\n",
+                )
+                self.assertFalse(override.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,7 @@ PROFILE_LABELS = {
     "file": "Scan to File",
     "image": "Scan to Image",
 }
-RESOLUTIONS = (100, 150, 200, 300, 400, 600, 1200, 2400, 4800, 9600)
+RESOLUTIONS = (100, 150, 200, 300, 400, 600, 1200)
 PAPER_SIZES = ("A3", "A4", "A5", "A6", "Letter", "Legal")
 
 
@@ -177,13 +177,22 @@ def save_all(
             settings[profile].paper_size,
             settings[profile].duplex,
         )
-        parser[profile] = {
-            "resolution": str(value.resolution),
-            "paper_size": value.paper_size,
-            "duplex": "true" if value.duplex else "false",
-        }
+        _replace_profile_section(parser, profile, value)
 
     _write_parser(parser, path)
+
+
+def _replace_profile_section(
+    parser: configparser.ConfigParser,
+    profile: str,
+    value: ScanSettings,
+) -> None:
+    parser.remove_section(profile)
+    parser[profile] = {
+        "resolution": str(value.resolution),
+        "paper_size": value.paper_size,
+        "duplex": "true" if value.duplex else "false",
+    }
 
 
 def save_enhanced_enabled(
@@ -193,7 +202,33 @@ def save_enhanced_enabled(
         raise ConfigurationError(
             "Enhanced enabled state must be true or false."
         )
-    save_all(load_all(path), path, enhanced_enabled=enabled)
+
+    try:
+        parser = _read_parser(path)
+    except ConfigurationError:
+        save_all(
+            restore_defaults(),
+            path,
+            enhanced_enabled=enabled,
+        )
+        return
+
+    if not parser.has_section("general"):
+        parser.add_section("general")
+    parser.set(
+        "general",
+        "enhanced_enabled",
+        "true" if enabled else "false",
+    )
+
+    for profile in PROFILES:
+        try:
+            value = _load_profile_from_parser(parser, profile)
+        except ConfigurationError:
+            value = DEFAULTS[profile]
+        _replace_profile_section(parser, profile, value)
+
+    _write_parser(parser, path)
 
 
 def restore_defaults() -> dict[str, ScanSettings]:

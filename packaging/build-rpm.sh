@@ -39,6 +39,7 @@ tar \
     --transform "s,^,$PACKAGE_NAME-$VERSION/," \
     -C "$PROJECT_DIR" \
     -czf "$RPM_ROOT/SOURCES/$PACKAGE_NAME-$VERSION.tar.gz" \
+    LICENSE \
     README.md \
     VERSION \
     bin \

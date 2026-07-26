@@ -71,6 +71,7 @@ install -m 0644 \
     "$APPLICATIONS_DIR/brscan-skey-config.desktop"
 install -m 0644 "$PROJECT_DIR/README.md" "$DOC_DIR/README.md"
 install -m 0644 "$PROJECT_DIR/VERSION" "$DOC_DIR/VERSION"
+install -m 0644 "$PROJECT_DIR/LICENSE" "$DOC_DIR/LICENSE"
 install -m 0644 "$PROJECT_DIR/packaging/copyright" "$DOC_DIR/copyright"
 printf '%s\n' "$DEFAULT_GUI" |
     install -m 0644 /dev/stdin "$APP_DIR/default-gui"
