@@ -19,8 +19,8 @@ PROFILE_LABELS = {
     "file": "Scan to File",
     "image": "Scan to Image",
 }
-RESOLUTIONS = (100, 150, 200, 300, 600)
-PAPER_SIZES = ("A4", "A5", "Letter", "Legal")
+RESOLUTIONS = (100, 150, 200, 300, 400, 600, 1200, 2400, 4800, 9600)
+PAPER_SIZES = ("A3", "A4", "A5", "A6", "Letter", "Legal")
 
 
 class ConfigurationError(Exception):

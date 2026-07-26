@@ -96,8 +96,8 @@ class SettingsDialog(QDialog):
         override_layout.addWidget(self.enhanced_toggle)
         layout.addWidget(override_row)
 
-        tabs = QTabWidget()
-        layout.addWidget(tabs)
+        self.profile_tabs = QTabWidget()
+        layout.addWidget(self.profile_tabs)
         for profile in PROFILES:
             page = QWidget()
             form = QFormLayout(page)
@@ -111,7 +111,7 @@ class SettingsDialog(QDialog):
             form.addRow("Paper size", paper)
             form.addRow("Duplex", duplex)
             self.controls[profile] = (resolution, paper, duplex)
-            tabs.addTab(page, PROFILE_LABELS[profile])
+            self.profile_tabs.addTab(page, PROFILE_LABELS[profile])
 
         self.status = QLabel(f"Configuration: {CONFIG_PATH}")
         self.status.setTextInteractionFlags(
@@ -126,12 +126,12 @@ class SettingsDialog(QDialog):
         )
         save_button = buttons.button(QDialogButtonBox.StandardButton.Save)
         close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
-        reset_button = buttons.button(
+        self.reset_button = buttons.button(
             QDialogButtonBox.StandardButton.RestoreDefaults
         )
         save_button.clicked.connect(self._save)
         close_button.clicked.connect(self.reject)
-        reset_button.clicked.connect(self._restore)
+        self.reset_button.clicked.connect(self._restore)
         layout.addWidget(buttons)
 
         try:
@@ -195,6 +195,8 @@ class SettingsDialog(QDialog):
         self.status.setText(f"Enhanced scan actions {state}.")
 
     def _update_override_state(self, enabled: bool) -> None:
+        self.profile_tabs.setEnabled(enabled)
+        self.reset_button.setEnabled(enabled)
         if enabled:
             message = "ON — enhanced actions override Brother defaults."
         else:

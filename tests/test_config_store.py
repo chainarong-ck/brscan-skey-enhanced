@@ -9,12 +9,15 @@ import unittest
 from pathlib import Path
 
 from configurator.config_store import (
+    PAPER_SIZES,
+    RESOLUTIONS,
     ConfigurationError,
     create_default_settings,
     load_all,
     load_enhanced_enabled,
     load_profile,
     save_enhanced_enabled,
+    validate,
 )
 
 
@@ -22,6 +25,29 @@ PROJECT_DIR = Path(__file__).resolve().parent.parent
 
 
 class PerUserConfigurationTests(unittest.TestCase):
+    def test_all_supported_scan_options_are_accepted(self) -> None:
+        self.assertEqual(
+            RESOLUTIONS,
+            (100, 150, 200, 300, 400, 600, 1200, 2400, 4800, 9600),
+        )
+        self.assertEqual(
+            PAPER_SIZES,
+            ("A3", "A4", "A5", "A6", "Letter", "Legal"),
+        )
+
+        for resolution in RESOLUTIONS:
+            with self.subTest(resolution=resolution):
+                self.assertEqual(
+                    validate(resolution, "A4", False).resolution,
+                    resolution,
+                )
+        for paper_size in PAPER_SIZES:
+            with self.subTest(paper_size=paper_size):
+                self.assertEqual(
+                    validate(300, paper_size, False).paper_size,
+                    paper_size,
+                )
+
     def test_default_settings_are_complete_and_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "settings.ini"

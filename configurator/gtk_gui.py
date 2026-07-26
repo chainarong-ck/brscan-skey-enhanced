@@ -80,10 +80,10 @@ class SettingsWindow(Gtk.Window):
         override_row.pack_end(self.enhanced_switch, False, False, 0)
         outer.pack_start(override_row, False, False, 0)
 
-        notebook = Gtk.Notebook()
-        outer.pack_start(notebook, True, True, 0)
+        self.profile_notebook = Gtk.Notebook()
+        outer.pack_start(self.profile_notebook, True, True, 0)
         for profile in PROFILES:
-            notebook.append_page(
+            self.profile_notebook.append_page(
                 self._build_profile_page(profile),
                 Gtk.Label(label=PROFILE_LABELS[profile]),
             )
@@ -96,14 +96,14 @@ class SettingsWindow(Gtk.Window):
         buttons = Gtk.ButtonBox(orientation=Gtk.Orientation.HORIZONTAL)
         buttons.set_layout(Gtk.ButtonBoxStyle.END)
         buttons.set_spacing(8)
-        reset_button = Gtk.Button(label="Restore Defaults")
-        reset_button.connect("clicked", self._on_restore)
+        self.reset_button = Gtk.Button(label="Restore Defaults")
+        self.reset_button.connect("clicked", self._on_restore)
         close_button = Gtk.Button(label="Close")
         close_button.connect("clicked", lambda _button: self.destroy())
         save_button = Gtk.Button(label="Save")
         save_button.get_style_context().add_class("suggested-action")
         save_button.connect("clicked", self._on_save)
-        buttons.add(reset_button)
+        buttons.add(self.reset_button)
         buttons.add(close_button)
         buttons.add(save_button)
         outer.pack_start(buttons, False, False, 0)
@@ -208,6 +208,8 @@ class SettingsWindow(Gtk.Window):
         self.status.set_text(f"Enhanced scan actions {state}.")
 
     def _update_override_state(self, enabled: bool) -> None:
+        self.profile_notebook.set_sensitive(enabled)
+        self.reset_button.set_sensitive(enabled)
         if enabled:
             message = "ON — enhanced actions override Brother defaults."
         else:
