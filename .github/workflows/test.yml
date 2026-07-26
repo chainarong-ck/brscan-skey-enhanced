@@ -58,7 +58,7 @@ jobs:
           - name: Arch Linux
             image: archlinux:latest
             package_manager: pacman
-            package_format: none
+            package_format: arch
 
     steps:
       - name: Install test dependencies
@@ -85,10 +85,13 @@ jobs:
               ;;
             pacman)
               pacman -Syu --noconfirm \
+                base-devel \
                 bash \
                 ca-certificates \
                 git \
-                python
+                gtk3 \
+                python \
+                python-gobject
               ;;
             *)
               echo "Unsupported package manager" >&2
@@ -127,6 +130,7 @@ jobs:
             bin/* \
             script/*.sh \
             packaging/*.sh \
+            packaging/arch/PKGBUILD \
             packaging/debian/postrm \
             *.config
 
@@ -143,8 +147,15 @@ jobs:
               ./packaging/build-rpm.sh
               rpm -qpl dist/*.noarch.rpm
               ;;
-            none)
-              echo "No DEB or RPM package for this distribution"
+            arch)
+              useradd --create-home package-builder
+              chown -R package-builder:package-builder "$GITHUB_WORKSPACE"
+              runuser -u package-builder -- \
+                env HOME=/home/package-builder \
+                bash -c \
+                "cd '$GITHUB_WORKSPACE' && ./packaging/build-arch.sh"
+              pacman -Qip dist/*.pkg.tar.zst
+              pacman -Qlp dist/*.pkg.tar.zst
               ;;
           esac
 
@@ -164,8 +175,11 @@ jobs:
               brscan-skey-config --help
               dnf remove -y brscan-skey-enhanced
               ;;
-            none)
-              echo "No package lifecycle test for this distribution"
+            arch)
+              pacman -U --noconfirm ./dist/*.pkg.tar.zst
+              pacman -Q brscan-skey-enhanced
+              brscan-skey-config --help
+              pacman -R --noconfirm brscan-skey-enhanced
               ;;
           esac
           test ! -e /usr/bin/brscan-skey-config

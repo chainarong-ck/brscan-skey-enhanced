@@ -22,7 +22,7 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 └── scantoimage.config
 ```
 
-เมื่อใช้แพ็กเกจ DEB/RPM ค่า `<prefix>` คือ `/usr` ส่วน `install.sh`
+เมื่อใช้แพ็กเกจ DEB/RPM/Arch Linux ค่า `<prefix>` คือ `/usr` ส่วน `install.sh`
 ใช้ `/usr/local`
 
 ใน home ของผู้ใช้แต่ละคนจะเก็บเฉพาะค่าและไฟล์ที่ใช้เปิด override:
@@ -104,11 +104,26 @@ sudo dnf install ./dist/brscan-skey-enhanced-1.0.0-1*.noarch.rpm
 แพ็กเกจ DEB/RPM ใช้ GTK 3 เป็น frontend เริ่มต้น แต่ยังเรียก
 `brscan-skey-config --qt` ได้เมื่อติดตั้ง PySide6 หรือ PyQt6 เพิ่มเอง
 
-เวอร์ชันแพ็กเกจอ่านจากไฟล์ `VERSION` ทั้งสองรูปแบบจึงใช้หมายเลขรุ่นเดียวกัน
+## ติดตั้งด้วยแพ็กเกจ Arch Linux
+
+ติดตั้งเครื่องมือ build และ GTK frontend ก่อน:
+
+```bash
+sudo pacman -S --needed base-devel python python-gobject gtk3
+./packaging/build-arch.sh
+sudo pacman -U ./dist/brscan-skey-enhanced-1.0.0-1-any.pkg.tar.zst
+```
+
+ต้องเรียก `build-arch.sh` ด้วยผู้ใช้ปกติ เนื่องจาก `makepkg` ไม่อนุญาตให้
+build package ด้วย root ไฟล์ที่ได้เป็นแพ็กเกจ `arch=('any')` และใช้ GTK 3
+เป็น frontend เริ่มต้น ส่วน ImageMagick และ `xdg-utils` เป็น optional
+dependencies
+
+เวอร์ชันแพ็กเกจอ่านจากไฟล์ `VERSION` ทั้งสามรูปแบบจึงใช้หมายเลขรุ่นเดียวกัน
 
 > ไม่แนะนำให้ติดตั้งด้วยแพ็กเกจพร้อมกับ `install.sh` เนื่องจาก
 > `/usr/local/bin` มาก่อน `/usr/bin` ใน `$PATH` โดยทั่วไป หากเคยใช้
-> `install.sh` ให้รัน `sudo ./uninstall.sh` ก่อนติดตั้ง DEB/RPM
+> `install.sh` ให้รัน `sudo ./uninstall.sh` ก่อนติดตั้งแพ็กเกจ
 
 ## ติดตั้งด้วย install.sh
 
@@ -245,6 +260,12 @@ sudo apt install ./dist/brscan-skey-enhanced_<version>_all.deb
 sudo dnf upgrade ./dist/brscan-skey-enhanced-<version>.noarch.rpm
 ```
 
+สำหรับ Arch Linux:
+
+```bash
+sudo pacman -U ./dist/brscan-skey-enhanced-<version>-1-any.pkg.tar.zst
+```
+
 หากติดตั้งด้วย `install.sh` ให้ดึง source รุ่นใหม่แล้วรันตัวติดตั้งซ้ำ:
 
 ```bash
@@ -265,6 +286,7 @@ sudo ./install.sh
 ```bash
 sudo apt remove brscan-skey-enhanced     # เมื่อติดตั้งด้วย DEB
 sudo dnf remove brscan-skey-enhanced     # เมื่อติดตั้งด้วย RPM
+sudo pacman -R brscan-skey-enhanced      # เมื่อติดตั้งด้วย Arch package
 sudo ./uninstall.sh                      # เมื่อติดตั้งด้วย install.sh
 ```
 
@@ -281,7 +303,10 @@ sudo ./uninstall.sh                      # เมื่อติดตั้ง�
 
 ```bash
 python3 -m unittest discover -s tests -v
-bash -n install.sh uninstall.sh bin/* script/*.sh packaging/*.sh *.config
+bash -n \
+  install.sh uninstall.sh bin/* script/*.sh packaging/*.sh \
+  packaging/arch/PKGBUILD *.config
 ./packaging/build-deb.sh
 ./packaging/build-rpm.sh
+./packaging/build-arch.sh
 ```

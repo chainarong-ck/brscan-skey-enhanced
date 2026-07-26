@@ -40,6 +40,7 @@ bash -n \
     bin/* \
     script/*.sh \
     packaging/*.sh \
+    packaging/arch/PKGBUILD \
     packaging/debian/postrm \
     *.config
 

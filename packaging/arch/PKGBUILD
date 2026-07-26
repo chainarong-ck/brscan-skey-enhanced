@@ -1,0 +1,44 @@
+pkgname=brscan-skey-enhanced
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Enhanced Brother scanner button actions and settings GUI"
+arch=('any')
+url="https://github.com/chainarong-ck/brscan-skey-enhanced"
+license=('MIT')
+depends=(
+    'bash'
+    'coreutils'
+    'gtk3'
+    'python>=3.9'
+    'python-gobject'
+)
+optdepends=(
+    'brscan-skey: Brother scanner button service and scan command'
+    'imagemagick: convert TIFF scans to PDF or JPEG'
+    'xdg-utils: open images and compose email with attachments'
+)
+source=("${pkgname}-${pkgver}.tar.gz")
+# build-arch.sh replaces SKIP with the generated source archive checksum.
+sha256sums=('SKIP')
+
+check() {
+    cd "${pkgname}-${pkgver}"
+    PYTHONDONTWRITEBYTECODE=1 \
+        python3 -m unittest discover -s tests -v
+    bash -n \
+        install.sh \
+        uninstall.sh \
+        bin/* \
+        script/*.sh \
+        packaging/*.sh \
+        packaging/arch/PKGBUILD \
+        packaging/debian/postrm \
+        *.config
+}
+
+package() {
+    cd "${pkgname}-${pkgver}"
+    bash packaging/install-files.sh "${pkgdir}" /usr gtk
+    install -Dm0644 LICENSE \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
