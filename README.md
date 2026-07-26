@@ -54,7 +54,7 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 
 ## สิ่งที่ต้องมี
 
-- Linux และ Python 3.10 ขึ้นไป
+- Linux และ Python 3.9 ขึ้นไป
 - ไดรเวอร์เครื่องสแกน Brother พร้อม `brscan-skey`
 - ImageMagick ที่มีคำสั่ง `magick`
 - GUI อย่างใดอย่างหนึ่ง:

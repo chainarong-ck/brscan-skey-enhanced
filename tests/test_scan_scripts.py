@@ -49,6 +49,11 @@ class ScanScriptTests(unittest.TestCase):
             self.bin_dir / "xdg-email",
             "#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$EMAIL_LOG\"\n",
         )
+        # Exercise the stderr fallback independently of the host's syslog.
+        self._write_executable(
+            self.bin_dir / "logger",
+            "#!/bin/sh\nexit 1\n",
+        )
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
