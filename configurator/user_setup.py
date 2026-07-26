@@ -151,7 +151,7 @@ def ensure_user_installation() -> Path:
         try:
             save_enhanced_enabled(enabled)
         except ConfigurationError as save_exc:
-            raise UserSetupError(str(save_exc)) from exc
+            raise UserSetupError(str(save_exc)) from save_exc
     apply_override_state(enabled)
 
     return USER_CONFIG_DIR

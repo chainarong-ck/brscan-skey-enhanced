@@ -52,6 +52,7 @@ if [ "$1" -eq 0 ]; then
 fi
 
 %files
+%license LICENSE
 %{_bindir}/brscan-skey-config
 %{_bindir}/brscan-skey-read-settings
 %{_datadir}/applications/brscan-skey-config.desktop

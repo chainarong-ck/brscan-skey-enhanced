@@ -120,11 +120,13 @@ class ScanScriptTests(unittest.TestCase):
             "#!/bin/bash\noutput=\"${!#}\"\ncp -- \"$1\" \"$output\"\n",
         )
         for command_name in (
+            "basename",
             "chmod",
             "cp",
             "date",
             "dirname",
             "mkdir",
+            "mktemp",
             "mv",
             "rm",
         ):

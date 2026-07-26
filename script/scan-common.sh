@@ -9,6 +9,7 @@ BRSCAN_SCANNER="${BRSCAN_SCANNER:-/opt/brother/scanner/brscan-skey/skey-scanimag
 BRSCAN_SETTINGS_READER="${BRSCAN_SETTINGS_READER:-$BRSCAN_INSTALL_PREFIX/bin/brscan-skey-read-settings}"
 BRSCAN_OUTPUT_DIR="${BRSCAN_OUTPUT_DIR:-${HOME:?HOME is not set}/brscan}"
 BRSCAN_TEMP=""
+BRSCAN_TEMP_DIR=""
 BRSCAN_PRIMARY_OUTPUT=""
 BRSCAN_IMAGE_OUTPUTS=()
 
@@ -23,6 +24,9 @@ fi
 cleanup_scan_temp() {
     if [ -n "$BRSCAN_TEMP" ]; then
         rm -f -- "$BRSCAN_TEMP"
+    fi
+    if [ -n "$BRSCAN_TEMP_DIR" ]; then
+        rmdir -- "$BRSCAN_TEMP_DIR" 2>/dev/null || true
     fi
 }
 
@@ -99,8 +103,9 @@ start_scan() {
     fi
 
     BRSCAN_STAMP="$(date '+%Y-%m-%d_%H-%M-%S_%N')"
-    BRSCAN_OUTPUT_BASE="$BRSCAN_OUTPUT_DIR/${prefix}${BRSCAN_STAMP}_$$"
-    BRSCAN_TEMP="$BRSCAN_OUTPUT_DIR/.${prefix}${BRSCAN_STAMP}_$$.tif"
+    BRSCAN_TEMP_DIR="$(mktemp -d "$BRSCAN_OUTPUT_DIR/.scan_XXXXXX")"
+    BRSCAN_TEMP="$BRSCAN_TEMP_DIR/scan.tif"
+    BRSCAN_OUTPUT_BASE="$BRSCAN_OUTPUT_DIR/${prefix}${BRSCAN_STAMP}_$(basename "$BRSCAN_TEMP_DIR")"
 
     scan_args=(
         --device-name "$device"

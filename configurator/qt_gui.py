@@ -160,7 +160,7 @@ class SettingsDialog(QDialog):
     def _collect(self) -> dict[str, ScanSettings]:
         return {
             profile: ScanSettings(
-                int(resolution.currentData()),
+                int(resolution.currentData() or 200),
                 paper.currentText(),
                 duplex.isChecked(),
             )

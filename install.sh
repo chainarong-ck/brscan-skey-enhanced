@@ -133,6 +133,7 @@ install -d -m 0755 \
     "$APPLICATIONS_DIR"
 
 for file in "$PROJECT_DIR"/configurator/*.py; do
+    [ -e "$file" ] || continue
     install -m 0644 "$file" "$APP_DIR/configurator/"
 done
 for file in \
@@ -143,6 +144,7 @@ do
     install -m 0644 "$PROJECT_DIR/$file" "$APP_DIR/$file"
 done
 for file in "$PROJECT_DIR"/script/*.sh; do
+    [ -e "$file" ] || continue
     install -m 0755 "$file" "$APP_DIR/script/"
 done
 install -m 0755 \

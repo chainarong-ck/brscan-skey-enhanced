@@ -3,8 +3,12 @@ set -eu
 
 case "$0" in
     */*) launcher_path="$0" ;;
-    *) launcher_path="$(command -v "$0")" ;;
+    *) launcher_path="$(command -v "$0" || true)" ;;
 esac
+if [ -z "$launcher_path" ]; then
+    echo "brscan-skey-config: cannot determine launcher path" >&2
+    exit 1
+fi
 launcher_path="$(readlink -f "$launcher_path")"
 install_prefix="$(dirname "$(dirname "$launcher_path")")"
 app_dir="$install_prefix/lib/brscan-skey-enhanced"

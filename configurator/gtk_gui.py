@@ -8,7 +8,7 @@ try:
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk, Pango
+    from gi.repository import GLib, Gtk, Pango
 except (ImportError, ValueError) as exc:
     print(f"GTK 3 Python support is required: {exc}", file=sys.stderr)
     raise SystemExit(1)
@@ -111,13 +111,13 @@ class SettingsWindow(Gtk.Window):
         try:
             self._populate(load_all())
         except ConfigurationError as exc:
-            self._show_error(str(exc))
+            GLib.idle_add(lambda msg=str(exc): self._show_error(msg))
             self._populate(restore_defaults())
 
         try:
             enabled = load_enhanced_enabled()
         except ConfigurationError as exc:
-            self._show_error(str(exc))
+            GLib.idle_add(lambda msg=str(exc): self._show_error(msg))
             enabled = DEFAULT_ENHANCED_ENABLED
         self._enabled_state = enabled
         self.enhanced_switch.set_active(enabled)

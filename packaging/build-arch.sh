@@ -64,7 +64,7 @@ if ! grep -Fq "sha256sums=('$SOURCE_SHA256')" "$BUILD_DIR/PKGBUILD"; then
 fi
 
 (
-    cd "$BUILD_DIR"
+    cd "$BUILD_DIR" || exit 1
     PKGDEST="$OUTPUT_DIR" makepkg --cleanbuild --force
 )
 

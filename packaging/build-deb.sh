@@ -34,7 +34,7 @@ install -m 0755 \
     "$PACKAGE_ROOT/DEBIAN/postrm"
 
 (
-    cd "$PACKAGE_ROOT"
+    cd "$PACKAGE_ROOT" || exit 1
     find usr -type f -print0 |
         sort -z |
         xargs -0 md5sum > DEBIAN/md5sums
