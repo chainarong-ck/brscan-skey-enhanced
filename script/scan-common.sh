@@ -2,10 +2,21 @@
 
 umask 077
 
+BRSCAN_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BRSCAN_APP_DIR="$(dirname "$BRSCAN_SCRIPT_DIR")"
+BRSCAN_INSTALL_PREFIX="$(dirname "$(dirname "$BRSCAN_APP_DIR")")"
 BRSCAN_SCANNER="${BRSCAN_SCANNER:-/opt/brother/scanner/brscan-skey/skey-scanimage}"
-BRSCAN_SETTINGS_READER="${BRSCAN_SETTINGS_READER:-/usr/local/bin/brscan-skey-read-settings}"
+BRSCAN_SETTINGS_READER="${BRSCAN_SETTINGS_READER:-$BRSCAN_INSTALL_PREFIX/bin/brscan-skey-read-settings}"
 BRSCAN_OUTPUT_DIR="${BRSCAN_OUTPUT_DIR:-${HOME:?HOME is not set}/brscan}"
 BRSCAN_TEMP=""
+
+if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ]; then
+    if command -v magick >/dev/null 2>&1; then
+        BRSCAN_IMAGE_CONVERTER=magick
+    elif command -v convert >/dev/null 2>&1; then
+        BRSCAN_IMAGE_CONVERTER=convert
+    fi
+fi
 
 cleanup_scan_temp() {
     if [ -n "$BRSCAN_TEMP" ]; then
@@ -135,11 +146,13 @@ convert_scan_to_pdf() {
     local output="$1"
     local action="$2"
 
-    if ! command -v magick >/dev/null 2>&1; then
+    if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ] ||
+        ! command -v "$BRSCAN_IMAGE_CONVERTER" >/dev/null 2>&1
+    then
         preserve_scan_as_tiff "$action failed: ImageMagick is unavailable"
         return 1
     fi
-    if magick "$BRSCAN_TEMP" \
+    if "$BRSCAN_IMAGE_CONVERTER" "$BRSCAN_TEMP" \
         -units PixelsPerInch \
         -density "$BRSCAN_RESOLUTION" \
         "$output" &&
@@ -157,11 +170,13 @@ convert_scan_to_pdf() {
 convert_scan_to_jpeg() {
     local output="$1"
 
-    if ! command -v magick >/dev/null 2>&1; then
+    if [ -z "${BRSCAN_IMAGE_CONVERTER:-}" ] ||
+        ! command -v "$BRSCAN_IMAGE_CONVERTER" >/dev/null 2>&1
+    then
         preserve_scan_as_tiff "Scan to Image failed: ImageMagick is unavailable"
         return 1
     fi
-    if magick "$BRSCAN_TEMP" \
+    if "$BRSCAN_IMAGE_CONVERTER" "$BRSCAN_TEMP" \
         -background white \
         -alpha remove \
         -alpha off \

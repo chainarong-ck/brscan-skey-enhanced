@@ -1,5 +1,18 @@
 #!/bin/sh
 set -eu
 
-cd /usr/local/lib/brscan-skey-enhanced
+case "$0" in
+    */*) launcher_path="$0" ;;
+    *) launcher_path="$(command -v "$0")" ;;
+esac
+launcher_path="$(readlink -f "$launcher_path")"
+install_prefix="$(dirname "$(dirname "$launcher_path")")"
+app_dir="$install_prefix/lib/brscan-skey-enhanced"
+
+if [ ! -d "$app_dir/configurator" ]; then
+    echo "brscan-skey-read-settings: application files not found: $app_dir" >&2
+    exit 1
+fi
+
+cd "$app_dir"
 exec python3 -m configurator.config_store "$@"

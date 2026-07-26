@@ -22,33 +22,43 @@ jobs:
           - name: Ubuntu 22.04
             image: ubuntu:22.04
             package_manager: apt
+            package_format: deb
           - name: Ubuntu 24.04
             image: ubuntu:24.04
             package_manager: apt
+            package_format: deb
           - name: Ubuntu 26.04
             image: ubuntu:26.04
             package_manager: apt
+            package_format: deb
           - name: Debian 12
             image: debian:12
             package_manager: apt
+            package_format: deb
           - name: Debian 13
             image: debian:13
             package_manager: apt
+            package_format: deb
           - name: Fedora 43
             image: fedora:43
             package_manager: dnf
+            package_format: rpm
           - name: Fedora 44
             image: fedora:44
             package_manager: dnf
+            package_format: rpm
           - name: AlmaLinux 9
             image: almalinux:9
             package_manager: dnf
+            package_format: rpm
           - name: AlmaLinux 10
             image: almalinux:10
             package_manager: dnf
+            package_format: rpm
           - name: Arch Linux
             image: archlinux:latest
             package_manager: pacman
+            package_format: none
 
     steps:
       - name: Install test dependencies
@@ -61,6 +71,7 @@ jobs:
               apt-get install -y --no-install-recommends \
                 bash \
                 ca-certificates \
+                dpkg-dev \
                 git \
                 python3
               ;;
@@ -69,7 +80,8 @@ jobs:
                 bash \
                 ca-certificates \
                 git \
-                python3
+                python3 \
+                rpm-build
               ;;
             pacman)
               pacman -Syu --noconfirm \
@@ -108,4 +120,52 @@ jobs:
 
       - name: Check shell syntax
         shell: bash
-        run: bash -n install.sh uninstall.sh bin/* script/*.sh *.config
+        run: |
+          bash -n \
+            install.sh \
+            uninstall.sh \
+            bin/* \
+            script/*.sh \
+            packaging/*.sh \
+            *.config
+
+      - name: Build native package
+        shell: bash
+        run: |
+          case "${{ matrix.package_format }}" in
+            deb)
+              ./packaging/build-deb.sh
+              dpkg-deb --info dist/*.deb
+              dpkg-deb --contents dist/*.deb
+              ;;
+            rpm)
+              ./packaging/build-rpm.sh
+              rpm -qpl dist/*.noarch.rpm
+              ;;
+            none)
+              echo "No DEB or RPM package for this distribution"
+              ;;
+          esac
+
+      - name: Test native package lifecycle
+        shell: bash
+        run: |
+          case "${{ matrix.package_format }}" in
+            deb)
+              apt-get install -y ./dist/*.deb
+              dpkg-query --show brscan-skey-enhanced
+              brscan-skey-config --help
+              apt-get remove -y brscan-skey-enhanced
+              ;;
+            rpm)
+              dnf install -y ./dist/*.noarch.rpm
+              rpm -q brscan-skey-enhanced
+              brscan-skey-config --help
+              dnf remove -y brscan-skey-enhanced
+              ;;
+            none)
+              echo "No package lifecycle test for this distribution"
+              ;;
+          esac
+          test ! -e /usr/bin/brscan-skey-config
+          test ! -e /usr/lib/brscan-skey-enhanced

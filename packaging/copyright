@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: brscan-skey-enhanced
+Source: https://github.com/chainarong-ck/brscan-skey-enhanced
+
+Files: *
+Copyright: 2026 Chainarong-CK
+License: LicenseRef-Unknown
+ No upstream software license has been declared yet.

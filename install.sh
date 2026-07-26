@@ -115,8 +115,10 @@ importlib.import_module(module)
         ;;
 esac
 
-if ! command -v magick >/dev/null 2>&1; then
-    echo "Warning: ImageMagick 'magick' was not found." >&2
+if ! command -v magick >/dev/null 2>&1 &&
+    ! command -v convert >/dev/null 2>&1
+then
+    echo "Warning: ImageMagick 'magick' or 'convert' was not found." >&2
 fi
 if [ ! -x /opt/brother/scanner/brscan-skey/skey-scanimage ]; then
     echo "Warning: Brother skey-scanimage was not found." >&2

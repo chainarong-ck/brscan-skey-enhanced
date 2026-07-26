@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -81,11 +82,14 @@ class ScanScriptTests(unittest.TestCase):
         return environment
 
     def _run(
-        self, script_name: str, device: str = "test-device"
+        self,
+        script_name: str,
+        device: str = "test-device",
+        environment: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [str(SCRIPT_DIR / script_name), device],
-            env=self._environment(),
+            env=environment or self._environment(),
             check=False,
             capture_output=True,
             text=True,
@@ -108,6 +112,38 @@ class ScanScriptTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         outputs = list(self.output_dir.glob("brscan_image_*.jpg"))
         self.assertEqual(len(outputs), 1)
+
+    def test_imagemagick_6_convert_command_is_supported(self) -> None:
+        (self.bin_dir / "magick").unlink()
+        self._write_executable(
+            self.bin_dir / "convert",
+            "#!/bin/bash\noutput=\"${!#}\"\ncp -- \"$1\" \"$output\"\n",
+        )
+        for command_name in (
+            "chmod",
+            "cp",
+            "date",
+            "dirname",
+            "mkdir",
+            "mv",
+            "rm",
+        ):
+            command_path = shutil.which(command_name)
+            self.assertIsNotNone(command_path)
+            (self.bin_dir / command_name).symlink_to(command_path)
+        environment = self._environment()
+        environment["PATH"] = str(self.bin_dir)
+
+        result = self._run(
+            "brother-scan-to-file.sh",
+            environment=environment,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            len(list(self.output_dir.glob("brscan_file_*.pdf"))),
+            1,
+        )
 
     def test_duplex_settings_are_passed_to_the_brother_scanner(self) -> None:
         self._write_executable(

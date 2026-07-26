@@ -10,7 +10,7 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 `brscan-skey-config` ได้ สคริปต์สแกนที่ผู้ใช้ไม่ต้องแก้ไขจะมีเพียงชุดเดียว:
 
 ```text
-/usr/local/lib/brscan-skey-enhanced/
+<prefix>/lib/brscan-skey-enhanced/
 ├── configurator/
 ├── script/
 │   ├── scan-common.sh
@@ -21,6 +21,9 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 ├── scantoemail.config
 └── scantoimage.config
 ```
+
+เมื่อใช้แพ็กเกจ DEB/RPM ค่า `<prefix>` คือ `/usr` ส่วน `install.sh`
+ใช้ `/usr/local`
 
 ใน home ของผู้ใช้แต่ละคนจะเก็บเฉพาะค่าและไฟล์ที่ใช้เปิด override:
 
@@ -38,9 +41,9 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 ส่วนกลาง แต่สคริปต์ยังใช้ `$HOME` ของผู้ใช้ที่เรียกจึงอ่านค่ากับบันทึก
 ผลลัพธ์แยกกันตามผู้ใช้
 
-ไฟล์ส่วนกลางจะอยู่ที่ `/usr/local/lib/brscan-skey-enhanced` โดยปริยาย
-และมี launcher อยู่ใน `/usr/local/bin` โปรแกรมไม่คัดลอกหรือแก้ไฟล์ใน
-`/opt/brother/scanner/brscan-skey/`
+ไฟล์ส่วนกลางจะอยู่ใน `<prefix>/lib/brscan-skey-enhanced` และมี launcher
+อยู่ใน `<prefix>/bin` โปรแกรมไม่คัดลอกหรือแก้ไฟล์ใน
+`/opt/brother/scanner/brscan-skey/` ไม่ว่าจะติดตั้งด้วยวิธีใด
 
 ## ความสามารถ
 
@@ -56,7 +59,8 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 
 - Linux และ Python 3.9 ขึ้นไป
 - ไดรเวอร์เครื่องสแกน Brother พร้อม `brscan-skey`
-- ImageMagick ที่มีคำสั่ง `magick`
+- ImageMagick ที่มีคำสั่ง `magick` (ImageMagick 7) หรือ `convert`
+  (ImageMagick 6)
 - GUI อย่างใดอย่างหนึ่ง:
   - GTK 3 พร้อม PyGObject (แนะนำ) หรือ
   - PySide6/PyQt6
@@ -69,10 +73,43 @@ Email ของเครื่องสแกน Brother บน Linux โดย 
 sudo apt install python3-gi gir1.2-gtk-3.0 imagemagick xdg-utils
 ```
 
-ชื่อแพ็กเกจอาจต่างกันตาม Linux distribution และ ImageMagick บางรุ่นเก่า
-อาจยังไม่มีคำสั่ง `magick`
+ชื่อแพ็กเกจอาจต่างกันตาม Linux distribution โปรแกรมจะเลือก `magick`
+ก่อนและ fallback ไปใช้ `convert` บนระบบที่ยังเป็น ImageMagick 6
 
-## ติดตั้ง
+## ติดตั้งด้วยแพ็กเกจ DEB
+
+ใช้กับ Debian และ Ubuntu โดยสร้างแพ็กเกจแบบ architecture-independent:
+
+```bash
+sudo apt install dpkg-dev
+./packaging/build-deb.sh
+sudo apt install ./dist/brscan-skey-enhanced_0.1.0-1_all.deb
+```
+
+`apt` จะติดตั้ง GTK 3 frontend และ dependency ที่จำเป็นตาม metadata
+ของแพ็กเกจให้ ส่วน ImageMagick และ `xdg-utils` เป็น recommended packages
+
+## ติดตั้งด้วยแพ็กเกจ RPM
+
+ใช้กับ Fedora และ AlmaLinux:
+
+```bash
+sudo dnf install rpm-build
+./packaging/build-rpm.sh
+sudo dnf install ./dist/brscan-skey-enhanced-0.1.0-1*.noarch.rpm
+```
+
+สคริปต์จะสร้างทั้ง binary RPM แบบ `noarch` และ source RPM ใน `dist/`
+แพ็กเกจ DEB/RPM ใช้ GTK 3 เป็น frontend เริ่มต้น แต่ยังเรียก
+`brscan-skey-config --qt` ได้เมื่อติดตั้ง PySide6 หรือ PyQt6 เพิ่มเอง
+
+เวอร์ชันแพ็กเกจอ่านจากไฟล์ `VERSION` ทั้งสองรูปแบบจึงใช้หมายเลขรุ่นเดียวกัน
+
+> ไม่แนะนำให้ติดตั้งด้วยแพ็กเกจพร้อมกับ `install.sh` เนื่องจาก
+> `/usr/local/bin` มาก่อน `/usr/bin` ใน `$PATH` โดยทั่วไป หากเคยใช้
+> `install.sh` ให้รัน `sudo ./uninstall.sh` ก่อนติดตั้ง DEB/RPM
+
+## ติดตั้งด้วย install.sh
 
 โคลน repository แล้วรันตัวติดตั้ง:
 
@@ -186,7 +223,19 @@ journalctl -t brscan-skey
 
 ## อัปเดต
 
-ดึง source รุ่นใหม่แล้วรันตัวติดตั้งซ้ำ:
+สำหรับ DEB ให้อัปเกรดด้วยไฟล์แพ็กเกจรุ่นใหม่:
+
+```bash
+sudo apt install ./dist/brscan-skey-enhanced_<version>_all.deb
+```
+
+สำหรับ RPM:
+
+```bash
+sudo dnf upgrade ./dist/brscan-skey-enhanced-<version>.noarch.rpm
+```
+
+หากติดตั้งด้วย `install.sh` ให้ดึง source รุ่นใหม่แล้วรันตัวติดตั้งซ้ำ:
 
 ```bash
 git pull
@@ -203,7 +252,9 @@ sudo ./install.sh
 เนื่องจากตัวถอนการติดตั้งจะไม่แก้ไขไฟล์ใด ๆ ใน home ของผู้ใช้
 
 ```bash
-sudo ./uninstall.sh
+sudo apt remove brscan-skey-enhanced     # เมื่อติดตั้งด้วย DEB
+sudo dnf remove brscan-skey-enhanced     # เมื่อติดตั้งด้วย RPM
+sudo ./uninstall.sh                      # เมื่อติดตั้งด้วย install.sh
 ```
 
 ตัวถอนการติดตั้งจะลบเฉพาะโปรแกรมส่วนกลาง และเก็บ
@@ -215,5 +266,7 @@ sudo ./uninstall.sh
 
 ```bash
 python3 -m unittest discover -s tests -v
-bash -n install.sh uninstall.sh bin/* script/*.sh *.config
+bash -n install.sh uninstall.sh bin/* script/*.sh packaging/*.sh *.config
+./packaging/build-deb.sh
+./packaging/build-rpm.sh
 ```
