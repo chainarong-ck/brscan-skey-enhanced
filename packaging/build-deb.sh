@@ -29,6 +29,9 @@ sed "s/@PACKAGE_VERSION@/$PACKAGE_VERSION/g" \
     "$PROJECT_DIR/packaging/debian/control" \
     > "$PACKAGE_ROOT/DEBIAN/control"
 chmod 0644 "$PACKAGE_ROOT/DEBIAN/control"
+install -m 0755 \
+    "$PROJECT_DIR/packaging/debian/postrm" \
+    "$PACKAGE_ROOT/DEBIAN/postrm"
 
 (
     cd "$PACKAGE_ROOT"

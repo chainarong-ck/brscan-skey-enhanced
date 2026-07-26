@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|purge)
+        rm -rf -- \
+            /usr/lib/brscan-skey-enhanced/configurator/__pycache__
+        rmdir \
+            /usr/lib/brscan-skey-enhanced/configurator \
+            /usr/lib/brscan-skey-enhanced \
+            2>/dev/null || true
+        ;;
+esac

@@ -73,7 +73,7 @@ class PrefixAwareLauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             self.python_log.read_text(encoding="utf-8"),
-            f"cwd={app_dir}\nargs\t-m\tconfigurator.main\t--qt\n",
+            f"cwd={app_dir}\nargs\t-B\t-m\tconfigurator.main\t--qt\n",
         )
 
     def test_config_launcher_also_supports_usr_local_prefix(self) -> None:
@@ -107,7 +107,7 @@ class PrefixAwareLauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             self.python_log.read_text(encoding="utf-8"),
-            f"cwd={app_dir}\nargs\t-m\tconfigurator.main\t--gtk\n",
+            f"cwd={app_dir}\nargs\t-B\t-m\tconfigurator.main\t--gtk\n",
         )
 
     def test_settings_reader_uses_its_own_install_prefix(self) -> None:
@@ -126,8 +126,28 @@ class PrefixAwareLauncherTests(unittest.TestCase):
         self.assertEqual(
             self.python_log.read_text(encoding="utf-8"),
             f"cwd={app_dir}\n"
-            "args\t-m\tconfigurator.config_store\temail\n",
+            "args\t-B\t-m\tconfigurator.config_store\temail\n",
         )
+
+    def test_config_launcher_does_not_write_python_bytecode(self) -> None:
+        launcher = self.stage_root / "usr/bin/brscan-skey-config"
+        environment = os.environ.copy()
+        environment["PATH"] = "/usr/bin:/bin"
+        environment.pop("PYTHONDONTWRITEBYTECODE", None)
+
+        result = subprocess.run(
+            [str(launcher), "--help"],
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        configurator_dir = (
+            self.stage_root / "usr/lib/brscan-skey-enhanced/configurator"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((configurator_dir / "__pycache__").exists())
 
     def test_staged_package_has_gtk_default_and_portable_desktop_entry(
         self,

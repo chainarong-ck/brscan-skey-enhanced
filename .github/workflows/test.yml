@@ -127,6 +127,7 @@ jobs:
             bin/* \
             script/*.sh \
             packaging/*.sh \
+            packaging/debian/postrm \
             *.config
 
       - name: Build native package

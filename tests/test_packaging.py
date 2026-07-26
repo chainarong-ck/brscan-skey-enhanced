@@ -65,6 +65,36 @@ class DebianPackageTests(unittest.TestCase):
                 contents,
             )
 
+            control_dir = Path(temp_dir) / "control"
+            subprocess.run(
+                [
+                    "dpkg-deb",
+                    "--control",
+                    str(packages[0]),
+                    str(control_dir),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            postrm = control_dir / "postrm"
+            self.assertTrue(postrm.stat().st_mode & 0o111)
+            self.assertIn(
+                "/usr/lib/brscan-skey-enhanced/configurator/__pycache__",
+                postrm.read_text(encoding="utf-8"),
+            )
+
+    def test_rpm_postun_cleans_python_bytecode(self) -> None:
+        spec = (
+            PROJECT_DIR / "packaging/brscan-skey-enhanced.spec"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("%postun", spec)
+        self.assertIn(
+            "%{_prefix}/lib/%{name}/configurator/__pycache__",
+            spec,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

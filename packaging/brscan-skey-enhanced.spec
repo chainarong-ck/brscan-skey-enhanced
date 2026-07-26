@@ -34,7 +34,21 @@ bash packaging/install-files.sh "%{buildroot}" "%{_prefix}" gtk
 
 %check
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
-bash -n install.sh uninstall.sh bin/* script/*.sh packaging/*.sh *.config
+bash -n \
+    install.sh \
+    uninstall.sh \
+    bin/* \
+    script/*.sh \
+    packaging/*.sh \
+    packaging/debian/postrm \
+    *.config
+
+%postun
+if [ "$1" -eq 0 ]; then
+    rm -rf -- "%{_prefix}/lib/%{name}/configurator/__pycache__"
+    rmdir "%{_prefix}/lib/%{name}/configurator" >/dev/null 2>&1 || :
+    rmdir "%{_prefix}/lib/%{name}" >/dev/null 2>&1 || :
+fi
 
 %files
 %{_bindir}/brscan-skey-config
